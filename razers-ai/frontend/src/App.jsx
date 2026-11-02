@@ -1,26 +1,192 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+const STORAGE_KEY = "razers-ai-conversations";
+
+function createConversation() {
+  return {
+    id: crypto.randomUUID(),
+    title: "Percakapan baru",
+    messages: [
+      {
+        role: "assistant",
+        text: "Halo! Saya Razers AI. Ada yang bisa saya bantu?",
+      },
+    ],
+    updatedAt: Date.now(),
+  };
+}
+
+function loadConversations() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    if (saved) {
+      const data = JSON.parse(saved);
+
+      if (
+        Array.isArray(data.conversations) &&
+        data.conversations.length > 0 &&
+        data.conversations.every(
+          (chat) =>
+            typeof chat.id === "string" &&
+            Array.isArray(chat.messages)
+        )
+      ) {
+        const activeExists = data.conversations.some(
+          (chat) => chat.id === data.activeConversationId
+        );
+
+        return {
+          conversations: data.conversations,
+          activeConversationId: activeExists
+            ? data.activeConversationId
+            : data.conversations[0].id,
+        };
+      }
+    }
+  } catch (error) {
+    console.error("Gagal membaca conversation storage:", error);
+  }
+
+  const initialChat = createConversation();
+
+  return {
+    conversations: [initialChat],
+    activeConversationId: initialChat.id,
+  };
+}
 
 function App() {
-  const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      text: "Halo! Saya Razers AI. Ada yang bisa saya bantu?",
-    },
-  ]);
-  const [loading, setLoading] = useState(false);
+  const [conversationState, setConversationState] = useState(
+    loadConversations
+  );
 
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [backendStatus, setBackendStatus] = useState("connecting");
+
+  const { conversations, activeConversationId } = conversationState;
+
+  const activeConversation = conversations.find(
+    (chat) => chat.id === activeConversationId
+  );
+
+  const messages = activeConversation?.messages ?? [];
+
+  // Save conversations automatically
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(conversationState)
+      );
+    } catch (error) {
+      console.error("Gagal menyimpan percakapan:", error);
+    }
+  }, [conversationState]);
+
+  // Backend health check
+  useEffect(() => {
+    let active = true;
+
+    const checkBackend = async () => {
+      try {
+        const response = await fetch(
+          "http://127.0.0.1:8000/health"
+        );
+
+        if (!response.ok) {
+          throw new Error("Backend unavailable");
+        }
+
+        if (active) {
+          setBackendStatus("connected");
+        }
+      } catch {
+        if (active) {
+          setBackendStatus("disconnected");
+        }
+      }
+    };
+
+    checkBackend();
+
+    const interval = setInterval(checkBackend, 5000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Create new conversation
+  const newChat = () => {
+    if (loading) return;
+
+    const newConversation = createConversation();
+
+    setConversationState((prev) => ({
+      conversations: [
+        newConversation,
+        ...prev.conversations,
+      ],
+      activeConversationId: newConversation.id,
+    }));
+
+    setMessage("");
+  };
+
+  // Switch conversation
+  const selectConversation = (id) => {
+    if (loading) return;
+
+    setConversationState((prev) => ({
+      ...prev,
+      activeConversationId: id,
+    }));
+
+    setMessage("");
+  };
+
+  // Update conversation messages
+  const updateConversation = (id, updater) => {
+    setConversationState((prev) => ({
+      ...prev,
+      conversations: prev.conversations.map((chat) =>
+        chat.id === id
+          ? {
+              ...chat,
+              ...updater(chat),
+              updatedAt: Date.now(),
+            }
+          : chat
+      ),
+    }));
+  };
+
+  // Send message
   const sendMessage = async (event) => {
     event.preventDefault();
 
     const userMessage = message.trim();
-    if (!userMessage || loading) return;
 
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", text: userMessage },
-    ]);
+    if (!userMessage || loading || !activeConversation) return;
+
+    const conversationId = activeConversation.id;
+
+    updateConversation(conversationId, (chat) => ({
+      title:
+        chat.messages.length === 1 &&
+        chat.messages[0].role === "assistant"
+          ? userMessage.slice(0, 35) +
+            (userMessage.length > 35 ? "..." : "")
+          : chat.title,
+      messages: [
+        ...chat.messages,
+        { role: "user", text: userMessage },
+      ],
+    }));
 
     setMessage("");
     setLoading(true);
@@ -45,34 +211,27 @@ function App() {
 
       const data = await response.json();
 
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: data.reply },
-      ]);
+      updateConversation(conversationId, (chat) => ({
+        messages: [
+          ...chat.messages,
+          { role: "assistant", text: data.reply },
+        ],
+      }));
     } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text: "Tidak dapat terhubung ke server. Periksa koneksi Backend.",
-        },
-      ]);
+      updateConversation(conversationId, (chat) => ({
+        messages: [
+          ...chat.messages,
+          {
+            role: "assistant",
+            text: "Tidak dapat terhubung ke server. Periksa koneksi Backend.",
+          },
+        ],
+      }));
 
       console.error(error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const newChat = () => {
-    if (loading) return;
-
-    setMessages([
-      {
-        role: "assistant",
-        text: "Halo! Saya Razers AI. Ada yang bisa saya bantu?",
-      },
-    ]);
   };
 
   return (
@@ -83,24 +242,45 @@ function App() {
           <span>RAZERS AI</span>
         </div>
 
-        <button className="new-chat-button" onClick={newChat}>
+        <button
+          className="new-chat-button"
+          onClick={newChat}
+          disabled={loading}
+        >
           <span>+</span>
           Percakapan baru
         </button>
 
         <div className="sidebar-section">
-          <span className="section-label">WORKSPACE</span>
+          <span className="section-label">RECENT CHATS</span>
 
-          <div className="sidebar-item active">
-            <span>◫</span>
-            Percakapan
+          <div className="history-list">
+            {conversations.map((chat) => (
+              <button
+                key={chat.id}
+                className={`sidebar-item ${
+                  chat.id === activeConversationId ? "active" : ""
+                }`}
+                onClick={() => selectConversation(chat.id)}
+                disabled={loading}
+                title={chat.title}
+              >
+                <span>◫</span>
+                <span className="history-title">{chat.title}</span>
+              </button>
+            ))}
           </div>
         </div>
 
         <div className="sidebar-bottom">
           <div className="system-status">
-            <span className="status-dot"></span>
-            <span>Backend connected</span>
+            <span className={`status-dot ${backendStatus}`}></span>
+
+            <span>
+              {backendStatus === "connecting" && "Connecting..."}
+              {backendStatus === "connected" && "Connected"}
+              {backendStatus === "disconnected" && "Disconnected"}
+            </span>
           </div>
 
           <div className="profile">
