@@ -32,11 +32,29 @@ p {
   background: #18181b;
 }
 
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 180px;
+}
+
 .message {
+  max-width: 85%;
   padding: 14px;
   border-radius: 10px;
-  background: #27272a;
   line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.message.assistant {
+  align-self: flex-start;
+  background: #27272a;
+}
+
+.message.user {
+  align-self: flex-end;
+  background: #4f46e5;
 }
 
 .chat-input {
@@ -61,4 +79,10 @@ p {
   border-radius: 8px;
   background: #6366f1;
   color: white;
+  cursor: pointer;
+}
+
+.chat-input button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
