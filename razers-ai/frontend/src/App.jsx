@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 
 const STORAGE_KEY = "razers-ai-conversations";
+const API_URL = "http://127.0.0.1:8000";
 
 function createConversation() {
   return {
@@ -57,6 +58,31 @@ function loadConversations() {
   };
 }
 
+// Request AI response from backend
+async function requestAI(message) {
+  const response = await fetch(`${API_URL}/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ message }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      data.detail || `Server error (${response.status})`
+    );
+  }
+
+  if (!data.reply) {
+    throw new Error("Server returned an empty response.");
+  }
+
+  return data.reply;
+}
+
 function App() {
   const [conversationState, setConversationState] = useState(
     loadConversations
@@ -92,9 +118,7 @@ function App() {
 
     const checkBackend = async () => {
       try {
-        const response = await fetch(
-          "http://127.0.0.1:8000/health"
-        );
+        const response = await fetch(`${API_URL}/health`);
 
         if (!response.ok) {
           throw new Error("Backend unavailable");
@@ -149,7 +173,7 @@ function App() {
     setMessage("");
   };
 
-  // Update conversation messages
+  // Update conversation
   const updateConversation = (id, updater) => {
     setConversationState((prev) => ({
       ...prev,
@@ -182,6 +206,7 @@ function App() {
           ? userMessage.slice(0, 35) +
             (userMessage.length > 35 ? "..." : "")
           : chat.title,
+
       messages: [
         ...chat.messages,
         { role: "user", text: userMessage },
@@ -192,43 +217,71 @@ function App() {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        "http://127.0.0.1:8000/chat",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            message: userMessage,
-          }),
-        }
-      );
+      const reply = await requestAI(userMessage);
 
-      if (!response.ok) {
-        throw new Error("Server response error");
-      }
-
-      const data = await response.json();
-
-      updateConversation(conversationId, (chat) => ({
-        messages: [
-          ...chat.messages,
-          { role: "assistant", text: data.reply },
-        ],
-      }));
-    } catch (error) {
       updateConversation(conversationId, (chat) => ({
         messages: [
           ...chat.messages,
           {
             role: "assistant",
-            text: "Tidak dapat terhubung ke server. Periksa koneksi Backend.",
+            text: reply,
+          },
+        ],
+      }));
+    } catch (error) {
+      const retryId = crypto.randomUUID();
+
+      updateConversation(conversationId, (chat) => ({
+        messages: [
+          ...chat.messages,
+          {
+            role: "assistant",
+            text: "Maaf, Razers AI belum bisa memproses pesanmu. Silakan coba lagi.",
+            isError: true,
+            retryMessage: userMessage,
+            retryId,
           },
         ],
       }));
 
-      console.error(error);
+      console.error("Chat Error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Retry failed message
+  const retryMessage = async (conversationId, failedMessage) => {
+    if (loading || !failedMessage.retryMessage) return;
+
+    setLoading(true);
+
+    try {
+      const reply = await requestAI(failedMessage.retryMessage);
+
+      updateConversation(conversationId, (chat) => ({
+        messages: chat.messages.map((item) =>
+          item.retryId === failedMessage.retryId
+            ? {
+                role: "assistant",
+                text: reply,
+              }
+            : item
+        ),
+      }));
+    } catch (error) {
+      console.error("Retry Error:", error);
+
+      updateConversation(conversationId, (chat) => ({
+        messages: chat.messages.map((item) =>
+          item.retryId === failedMessage.retryId
+            ? {
+                ...item,
+                text: "Percobaan ulang gagal. Periksa koneksi backend atau layanan AI, lalu coba lagi.",
+              }
+            : item
+        ),
+      }));
     } finally {
       setLoading(false);
     }
@@ -322,7 +375,7 @@ function App() {
               <div className="conversation">
                 {messages.map((item, index) => (
                   <div
-                    key={index}
+                    key={item.retryId || index}
                     className={`message-row ${item.role}`}
                   >
                     {item.role === "assistant" && (
@@ -330,7 +383,22 @@ function App() {
                     )}
 
                     <div className="message-text">
-                      {item.text}
+                      <div>{item.text}</div>
+
+                      {item.isError && (
+                        <button
+                          className="retry-button"
+                          onClick={() =>
+                            retryMessage(
+                              activeConversationId,
+                              item
+                            )
+                          }
+                          disabled={loading}
+                        >
+                          ↻ Coba lagi
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -338,6 +406,7 @@ function App() {
                 {loading && (
                   <div className="message-row assistant">
                     <div className="message-avatar">R</div>
+
                     <div className="message-text loading-text">
                       Thinking...
                     </div>
