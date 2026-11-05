@@ -4,7 +4,7 @@
 
 Razers AI is a desktop AI assistant project designed to provide an interactive AI chat experience through a modern interface. It uses React and Vite for the frontend, Electron for the desktop application architecture, and FastAPI for the backend.
 
-> **Project Status:** In Development 
+> **Project Status:** In Development
 
 ## Features
 
@@ -16,6 +16,9 @@ Razers AI is a desktop AI assistant project designed to provide an interactive A
 - Backend health monitoring
 - REST API integration between frontend and backend
 - OpenAI API integration using the Responses API
+- Loading indicator while waiting for AI responses
+- Error handling for failed API requests
+- Retry failed messages
 - Responsive user interface
 
 ## Tech Stack
@@ -153,6 +156,7 @@ Frontend runs at:
 ## Development Roadmap
 
 ### Completed
+
 - [x] Backend Foundation
 - [x] Frontend Foundation
 - [x] Functional Chat Interface
@@ -163,12 +167,18 @@ Frontend runs at:
 - [x] OpenAI SDK Installation
 - [x] OpenAI API Configuration
 - [x] OpenAI Responses API Integration
+- [x] Chat Loading Indicator
+- [x] Frontend Error Handling
+- [x] Retry Failed Messages
+- [x] Chat Experience Polish
 
 ### In Progress
+
 - [ ] End-to-End AI Response Testing
 - [ ] Conversation Context and Memory
 
 ### Planned
+
 - [ ] Database Integration
 - [ ] Desktop Application Packaging
 - [ ] Docker Production Setup
@@ -179,6 +189,8 @@ Frontend runs at:
 The OpenAI API integration has been implemented in the FastAPI backend using the OpenAI Responses API and the `gpt-4.1-mini` model.
 
 The backend has successfully reached the OpenAI API and passed authentication. However, successful AI response testing is still pending because the API account currently has no remaining credits.
+
+The frontend chat experience has been improved with a loading indicator, error handling, and a retry mechanism for failed messages.
 
 Conversation history is currently stored in the browser using Local Storage. Database persistence and desktop application packaging are planned for future development.
 
