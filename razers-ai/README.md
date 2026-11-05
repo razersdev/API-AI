@@ -1,20 +1,21 @@
 # Razers AI
 
-**A desktop AI assistant built with React, Electron, and FastAPI.**
+**A desktop AI assistant built with React, Electron, FastAPI, and OpenAI API.**
 
-Razers AI is a desktop assistant project designed to provide an interactive chat experience through a modern desktop interface. It uses React and Electron for the frontend and FastAPI for the backend.
+Razers AI is a desktop AI assistant project designed to provide an interactive AI chat experience through a modern interface. It uses React and Vite for the frontend, Electron for the desktop application architecture, and FastAPI for the backend.
 
 > **Project Status:** In Development 
 
 ## Features
 
-- Modern desktop-inspired chat interface
-- Send and receive messages
+- Modern chat interface
+- Send and receive messages through the backend API
 - Multiple conversations
 - Conversation history stored locally using Local Storage
 - Automatic conversation titles
 - Backend health monitoring
 - REST API integration between frontend and backend
+- OpenAI API integration using the Responses API
 - Responsive user interface
 
 ## Tech Stack
@@ -31,6 +32,13 @@ Razers AI is a desktop assistant project designed to provide an interactive chat
 - FastAPI
 - Uvicorn
 - Pydantic
+- Python-dotenv
+- OpenAI Python SDK
+
+### AI Integration
+- OpenAI API
+- OpenAI Responses API
+- GPT-4.1 mini (`gpt-4.1-mini`)
 
 ## Project Structure
 
@@ -67,6 +75,7 @@ Make sure you have installed:
 - Python
 - Node.js and npm
 - Git
+- OpenAI API key
 
 ### 1. Clone Repository
 
@@ -93,10 +102,23 @@ Activate the virtual environment on Windows:
 Install dependencies:
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
-Start the FastAPI server:
+### 3. Configure Environment Variables
+
+Create a `.env` file inside the `backend` directory:
+
+```env
+OPENAI_API_KEY=your_openai_api_key
+```
+
+**Important:**
+- Keep your API key private.
+- Never commit the `.env` file to GitHub.
+- Use `.env.example` as a template without including real credentials.
+
+### 4. Start Backend Server
 
 ```bash
 uvicorn main:app --reload
@@ -110,7 +132,11 @@ API documentation:
 
 `http://127.0.0.1:8000/docs`
 
-### 3. Run Frontend
+Health check:
+
+`http://127.0.0.1:8000/health`
+
+### 5. Run Frontend
 
 Open another terminal:
 
@@ -126,6 +152,7 @@ Frontend runs at:
 
 ## Development Roadmap
 
+### Completed
 - [x] Backend Foundation
 - [x] Frontend Foundation
 - [x] Functional Chat Interface
@@ -133,16 +160,43 @@ Frontend runs at:
 - [x] Backend Health Check
 - [x] Conversation History
 - [x] Local Storage Persistence
-- [ ] AI Model Integration
+- [x] OpenAI SDK Installation
+- [x] OpenAI API Configuration
+- [x] OpenAI Responses API Integration
+
+### In Progress
+- [ ] End-to-End AI Response Testing
+- [ ] Conversation Context and Memory
+
+### Planned
 - [ ] Database Integration
 - [ ] Desktop Application Packaging
+- [ ] Docker Production Setup
 - [ ] Production Deployment
 
-## Current Limitations
+## Current Development Status
 
-- Chat responses currently use a placeholder backend response.
-- Conversation history is stored locally in the browser.
-- AI model integration is not yet implemented.
+The OpenAI API integration has been implemented in the FastAPI backend using the OpenAI Responses API and the `gpt-4.1-mini` model.
+
+The backend has successfully reached the OpenAI API and passed authentication. However, successful AI response testing is still pending because the API account currently has no remaining credits.
+
+Conversation history is currently stored in the browser using Local Storage. Database persistence and desktop application packaging are planned for future development.
+
+## Security
+
+- API credentials are stored in backend environment variables.
+- The `.env` file is excluded from Git tracking.
+- API requests are handled by the backend rather than exposing credentials in the frontend.
+
+## Future Goals
+
+Razers AI aims to evolve into a personal desktop assistant with:
+
+- Persistent conversation memory
+- Database-backed conversation management
+- Improved AI interaction
+- Native desktop experience
+- Production-ready deployment
 
 ## Author
 
@@ -152,4 +206,4 @@ GitHub: [@razersdev](https://github.com/razersdev)
 
 ---
 
-
+*Built with curiosity, consistency, and a passion for technology.*
