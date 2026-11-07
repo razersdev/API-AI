@@ -1,6 +1,7 @@
 
 import os
 from pathlib import Path
+from typing import Literal
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -42,7 +43,7 @@ client = OpenAI(
 app = FastAPI(
     title="Razers AI API",
     description="Backend API for Razers AI Desktop",
-    version="0.2.0"
+    version="0.3.0"
 )
 
 
@@ -66,10 +67,19 @@ app.add_middleware(
 # REQUEST & RESPONSE SCHEMAS
 # ==========================================
 
-class ChatRequest(BaseModel):
-    message: str = Field(
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+
+    content: str = Field(
         min_length=1,
         max_length=10000
+    )
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage] = Field(
+        min_length=1,
+        max_length=50
     )
 
 
@@ -85,7 +95,8 @@ class ChatResponse(BaseModel):
 def home():
     return {
         "app": "Razers AI",
-        "status": "running"
+        "status": "running",
+        "version": "0.3.0"
     }
 
 
@@ -107,10 +118,26 @@ def health_check():
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
 
+    # Ensure the latest message comes from the user
+    if request.messages[-1].role != "user":
+        raise HTTPException(
+            status_code=422,
+            detail="The last message must come from the user."
+        )
+
+    # Convert Pydantic messages into OpenAI input format
+    conversation_history = [
+        {
+            "role": item.role,
+            "content": item.content
+        }
+        for item in request.messages
+    ]
+
     try:
         response = client.responses.create(
             model="gpt-4.1-mini",
-            input=request.message
+            input=conversation_history
         )
 
         reply = response.output_text
@@ -125,9 +152,11 @@ def chat(request: ChatRequest):
             reply=reply
         )
 
+    except HTTPException:
+        raise
+
     except OpenAIError as error:
 
-        # Debugging information in backend terminal
         print(
             f"OpenAI Error: {type(error).__name__}: {error}",
             flush=True
