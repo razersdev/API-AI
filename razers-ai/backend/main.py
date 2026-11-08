@@ -21,19 +21,22 @@ load_dotenv(dotenv_path=ENV_PATH)
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-if not OPENAI_API_KEY:
-    raise RuntimeError(
-        "OPENAI_API_KEY tidak ditemukan. Periksa file backend/.env"
-    )
+MOCK_MODE = os.getenv(
+    "MOCK_MODE",
+    "true"
+).lower() == "true"
 
 
 # ==========================================
 # OPENAI CLIENT
 # ==========================================
 
-client = OpenAI(
-    api_key=OPENAI_API_KEY
-)
+client = None
+
+if OPENAI_API_KEY:
+    client = OpenAI(
+        api_key=OPENAI_API_KEY
+    )
 
 
 # ==========================================
@@ -43,7 +46,7 @@ client = OpenAI(
 app = FastAPI(
     title="Razers AI API",
     description="Backend API for Razers AI Desktop",
-    version="0.3.0"
+    version="0.4.0"
 )
 
 
@@ -88,15 +91,56 @@ class ChatResponse(BaseModel):
 
 
 # ==========================================
+# MOCK RESPONSE GENERATOR
+# ==========================================
+
+def generate_mock_reply(
+    messages: list[ChatMessage]
+) -> str:
+
+    latest_message = messages[-1].content
+
+    previous_messages = messages[:-1]
+
+    previous_user_messages = [
+        message.content
+        for message in previous_messages
+        if message.role == "user"
+    ]
+
+    if previous_user_messages:
+
+        previous_message = previous_user_messages[-1]
+
+        return (
+            "Halo! Aku Razers AI. 🤖\n\n"
+            "Saat ini aku sedang berjalan dalam MOCK MODE.\n\n"
+            f"Pesan sebelumnya: {previous_message}\n\n"
+            f"Pesan terbaru: {latest_message}\n\n"
+            f"Total pesan yang diterima: {len(messages)}\n\n"
+            "Backend berhasil menerima riwayat percakapan kamu!"
+        )
+
+    return (
+        "Halo! Aku Razers AI. 🤖\n\n"
+        "Saat ini aku sedang berjalan dalam MOCK MODE.\n\n"
+        f"Pesan kamu: {latest_message}\n\n"
+        "Backend berhasil menerima pesan kamu!"
+    )
+
+
+# ==========================================
 # ROOT ENDPOINT
 # ==========================================
 
 @app.get("/")
 def home():
+
     return {
         "app": "Razers AI",
         "status": "running",
-        "version": "0.3.0"
+        "version": "0.4.0",
+        "mode": "mock" if MOCK_MODE else "production"
     }
 
 
@@ -106,8 +150,11 @@ def home():
 
 @app.get("/health")
 def health_check():
+
     return {
-        "status": "healthy"
+        "status": "healthy",
+        "mode": "mock" if MOCK_MODE else "production",
+        "openai_configured": client is not None
     }
 
 
@@ -115,17 +162,42 @@ def health_check():
 # AI CHAT ENDPOINT
 # ==========================================
 
-@app.post("/chat", response_model=ChatResponse)
+@app.post(
+    "/chat",
+    response_model=ChatResponse
+)
 def chat(request: ChatRequest):
 
     # Ensure the latest message comes from the user
+
     if request.messages[-1].role != "user":
+
         raise HTTPException(
             status_code=422,
             detail="The last message must come from the user."
         )
 
-    # Convert Pydantic messages into OpenAI input format
+    # MOCK MODE
+
+    if MOCK_MODE:
+
+        return ChatResponse(
+            reply=generate_mock_reply(
+                request.messages
+            )
+        )
+
+    # Check OpenAI configuration
+
+    if not client:
+
+        raise HTTPException(
+            status_code=503,
+            detail="OpenAI API Key belum dikonfigurasi."
+        )
+
+    # Convert messages into OpenAI input format
+
     conversation_history = [
         {
             "role": item.role,
@@ -134,7 +206,10 @@ def chat(request: ChatRequest):
         for item in request.messages
     ]
 
+    # OPENAI REQUEST
+
     try:
+
         response = client.responses.create(
             model="gpt-4.1-mini",
             input=conversation_history
@@ -143,6 +218,7 @@ def chat(request: ChatRequest):
         reply = response.output_text
 
         if not reply:
+
             raise HTTPException(
                 status_code=502,
                 detail="OpenAI returned an empty response."
@@ -153,6 +229,7 @@ def chat(request: ChatRequest):
         )
 
     except HTTPException:
+
         raise
 
     except OpenAIError as error:
