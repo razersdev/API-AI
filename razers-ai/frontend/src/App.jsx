@@ -95,7 +95,8 @@ function buildConversationHistory(messages) {
       role: item.role,
       content: item.text,
     }))
-    .slice(-50);
+    // Reserve one slot for the latest user message
+    .slice(-49);
 }
 
 // ==========================================
