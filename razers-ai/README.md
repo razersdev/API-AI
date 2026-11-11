@@ -2,24 +2,37 @@
 
 **A desktop AI assistant built with React, Electron, FastAPI, and OpenAI API.**
 
-Razers AI is a desktop AI assistant project designed to provide an interactive AI chat experience through a modern interface. It uses React and Vite for the frontend, Electron for the desktop application architecture, and FastAPI for the backend.
+Razers AI is a personal desktop AI assistant project designed to provide an interactive AI chat experience through a modern interface. It uses React and Vite for the frontend, Electron for desktop application architecture, and FastAPI for the backend.
 
 > **Project Status:** In Development
 
 ## Features
 
-- Modern chat interface
+### Chat Experience
+- Modern and responsive chat interface
 - Send and receive messages through the backend API
-- Multiple conversations
-- Conversation history stored locally using Local Storage
-- Automatic conversation titles
-- Backend health monitoring
-- REST API integration between frontend and backend
-- OpenAI API integration using the Responses API
-- Loading indicator while waiting for AI responses
+- AI response loading indicator
 - Error handling for failed API requests
 - Retry failed messages
-- Responsive user interface
+- Conversation context handling
+
+### Conversation Management
+- Multiple conversations
+- Create new conversations
+- Automatic conversation titles
+- Rename conversations
+- Delete conversations
+- Custom confirmation modal
+- Custom toast notifications
+- Conversation history stored locally using Local Storage
+- Automatic local data persistence
+
+### Backend Integration
+- REST API integration between frontend and backend
+- Backend health monitoring
+- OpenAI API integration using the Responses API
+- Environment-based configuration
+- Mock mode for development and testing
 
 ## Tech Stack
 
@@ -78,7 +91,7 @@ Make sure you have installed:
 - Python
 - Node.js and npm
 - Git
-- OpenAI API key
+- OpenAI API key (required for real AI responses)
 
 ### 1. Clone Repository
 
@@ -99,7 +112,7 @@ python -m venv .venv
 Activate the virtual environment on Windows:
 
 ```powershell
-.\.venv\Scripts\Activate.ps1
+.venv\Scripts\Activate.ps1
 ```
 
 Install dependencies:
@@ -110,9 +123,18 @@ python -m pip install -r requirements.txt
 
 ### 3. Configure Environment Variables
 
-Create a `.env` file inside the `backend` directory:
+Create a `.env` file inside the `backend` directory.
+
+For development without API credits, use Mock Mode:
 
 ```env
+MOCK_MODE=true
+```
+
+For real AI responses, configure your OpenAI API key according to the backend configuration:
+
+```env
+MOCK_MODE=false
 OPENAI_API_KEY=your_openai_api_key
 ```
 
@@ -120,6 +142,7 @@ OPENAI_API_KEY=your_openai_api_key
 - Keep your API key private.
 - Never commit the `.env` file to GitHub.
 - Use `.env.example` as a template without including real credentials.
+- Mock Mode allows frontend and backend development without making real OpenAI API requests.
 
 ### 4. Start Backend Server
 
@@ -162,43 +185,57 @@ Frontend runs at:
 - [x] Functional Chat Interface
 - [x] Modern UI Design
 - [x] Backend Health Check
-- [x] Conversation History
-- [x] Local Storage Persistence
+- [x] REST API Integration
 - [x] OpenAI SDK Installation
 - [x] OpenAI API Configuration
 - [x] OpenAI Responses API Integration
 - [x] Chat Loading Indicator
 - [x] Frontend Error Handling
 - [x] Retry Failed Messages
-- [x] Chat Experience Polish
+- [x] Conversation History
+- [x] Local Storage Persistence
+- [x] Multiple Conversations
+- [x] Automatic Conversation Titles
+- [x] Create New Conversation
+- [x] Rename Conversation
+- [x] Delete Conversation
+- [x] Custom Confirmation Modal
+- [x] Custom Toast Notifications
+- [x] Conversation Management
 
 ### In Progress
 
 - [ ] End-to-End AI Response Testing
-- [ ] Conversation Context and Memory
+- [ ] Conversation Context and Memory Improvements
 
 ### Planned
 
 - [ ] Database Integration
+- [ ] Persistent Conversation Memory
 - [ ] Desktop Application Packaging
 - [ ] Docker Production Setup
 - [ ] Production Deployment
 
 ## Current Development Status
 
-The OpenAI API integration has been implemented in the FastAPI backend using the OpenAI Responses API and the `gpt-4.1-mini` model.
+Razers AI has completed its initial chat foundation and conversation management features.
 
-The backend has successfully reached the OpenAI API and passed authentication. However, successful AI response testing is still pending because the API account currently has no remaining credits.
+The frontend supports multiple conversations, automatic conversation titles, local conversation persistence, rename and delete operations, custom confirmation modals, and toast notifications.
 
-The frontend chat experience has been improved with a loading indicator, error handling, and a retry mechanism for failed messages.
+The FastAPI backend provides chat and health-check endpoints. OpenAI integration has been implemented using the Responses API with the `gpt-4.1-mini` model.
 
-Conversation history is currently stored in the browser using Local Storage. Database persistence and desktop application packaging are planned for future development.
+Mock Mode is available for development and testing without requiring active OpenAI API credits.
+
+Conversation history is currently stored in browser Local Storage and is sent to the backend as conversation context. Database-backed persistence and more advanced memory capabilities remain part of the development roadmap.
+
+The project is currently focused on improving the chat experience, testing AI responses, and preparing the desktop application architecture.
 
 ## Security
 
 - API credentials are stored in backend environment variables.
 - The `.env` file is excluded from Git tracking.
 - API requests are handled by the backend rather than exposing credentials in the frontend.
+- Mock Mode can be used for development without real API credentials.
 
 ## Future Goals
 
@@ -208,7 +245,8 @@ Razers AI aims to evolve into a personal desktop assistant with:
 - Database-backed conversation management
 - Improved AI interaction
 - Native desktop experience
-- Production-ready deployment
+- Production-ready architecture
+- Reliable and scalable backend services
 
 ## Author
 
