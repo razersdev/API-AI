@@ -565,3 +565,287 @@ button {
     transition-duration: 0.01ms !important;
   }
 }
+
+
+/* ==========================================
+   CONVERSATION MANAGEMENT
+========================================== */
+
+.sidebar-chat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  position: relative;
+}
+
+.sidebar-chat-item .sidebar-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar-chat-item:hover .chat-actions {
+  opacity: 1;
+}
+
+.chat-action-button {
+  width: 27px;
+  height: 27px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #999;
+  cursor: pointer;
+  font-size: 16px;
+  transition: 0.2s ease;
+}
+
+.chat-action-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.chat-action-button.delete:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.chat-action-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Show actions on touch devices too */
+@media (hover: none) {
+  .chat-actions {
+    opacity: 1;
+  }
+}
+
+
+/* ==========================================
+   RAZERS AI - CUSTOM MODAL
+   ========================================== */
+
+.razers-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(3px);
+  animation: razersOverlayIn 0.18s ease;
+}
+
+.razers-modal {
+  width: 100%;
+  max-width: 420px;
+  padding: 25px;
+  border: 1px solid #34343a;
+  border-radius: 13px;
+  background: #19191d;
+  color: #f4f4f5;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  animation: razersModalIn 0.2s ease;
+}
+
+.razers-modal-icon {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  border-radius: 9px;
+  background: #292938;
+  color: #c4c4ff;
+  font-size: 20px;
+}
+
+.razers-modal-icon.danger {
+  background: #3b2022;
+  color: #ff8585;
+}
+
+.razers-modal h2 {
+  margin: 0 0 9px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.razers-modal-description {
+  margin-bottom: 18px;
+  color: #a1a1aa;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.razers-modal-description strong {
+  color: #e4e4e7;
+}
+
+.razers-modal-input {
+  width: 100%;
+  height: 41px;
+  padding: 0 12px;
+  margin-bottom: 20px;
+  border: 1px solid #45454f;
+  border-radius: 8px;
+  outline: none;
+  background: #101014;
+  color: #f4f4f5;
+  font-size: 13px;
+}
+
+.razers-modal-input:focus {
+  border-color: #8585a8;
+}
+
+.razers-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.razers-modal-actions button {
+  min-width: 75px;
+  height: 36px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 7px;
+  font-size: 12px;
+  transition: background 0.2s ease;
+}
+
+.razers-modal-cancel {
+  background: #303039;
+  color: #d4d4d8;
+}
+
+.razers-modal-cancel:hover {
+  background: #41414b;
+}
+
+.razers-modal-confirm {
+  background: #5555a5;
+  color: white;
+}
+
+.razers-modal-confirm:hover {
+  background: #6666c0;
+}
+
+.razers-modal-delete {
+  background: #a83232;
+  color: white;
+}
+
+.razers-modal-delete:hover {
+  background: #c43c3c;
+}
+
+/* ==========================================
+   RAZERS AI - TOAST NOTIFICATION
+   ========================================== */
+
+.razers-toast {
+  position: fixed;
+  top: 22px;
+  right: 22px;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 250px;
+  max-width: calc(100vw - 40px);
+  padding: 13px 15px;
+  border: 1px solid #36363d;
+  border-radius: 9px;
+  background: #19191d;
+  color: #e4e4e7;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  font-size: 12px;
+  animation: razersToastIn 0.25s ease;
+}
+
+.razers-toast-icon {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #17452d;
+  color: #86efac;
+  font-weight: bold;
+}
+
+.razers-toast.error .razers-toast-icon {
+  background: #512323;
+  color: #fca5a5;
+}
+
+.razers-toast-text {
+  flex: 1;
+}
+
+.razers-toast-close {
+  border: none;
+  background: transparent;
+  color: #999;
+  font-size: 19px;
+}
+
+.razers-toast-close:hover {
+  color: white;
+}
+
+/* ==========================================
+   ANIMATIONS
+   ========================================== */
+
+@keyframes razersOverlayIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes razersModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes razersToastIn {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

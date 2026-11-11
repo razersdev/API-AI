@@ -58,10 +58,7 @@ function loadConversations() {
       }
     }
   } catch (error) {
-    console.error(
-      "Gagal membaca conversation storage:",
-      error
-    );
+    console.error("Storage Error:", error);
   }
 
   const initialChat = createConversation();
@@ -79,7 +76,6 @@ function loadConversations() {
 function buildConversationHistory(messages) {
   return messages
     .filter((item, index) => {
-      // Exclude default welcome message
       if (
         index === 0 &&
         item.role === "assistant" &&
@@ -88,14 +84,12 @@ function buildConversationHistory(messages) {
         return false;
       }
 
-      // Exclude failed assistant messages
       return !item.isError;
     })
     .map((item) => ({
       role: item.role,
       content: item.text,
     }))
-    // Reserve one slot for the latest user message
     .slice(-49);
 }
 
@@ -109,9 +103,7 @@ async function requestAI(messages) {
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      messages,
-    }),
+    body: JSON.stringify({ messages }),
   });
 
   const data = await response.json().catch(() => ({}));
@@ -134,13 +126,18 @@ async function requestAI(messages) {
 // ==========================================
 
 function App() {
-  const [conversationState, setConversationState] = useState(
-    loadConversations
-  );
+  const [conversationState, setConversationState] =
+    useState(loadConversations);
 
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [backendStatus, setBackendStatus] = useState("connecting");
+  const [backendStatus, setBackendStatus] =
+    useState("connecting");
+
+  // Custom modal and notification
+  const [modal, setModal] = useState(null);
+  const [modalInput, setModalInput] = useState("");
+  const [toast, setToast] = useState(null);
 
   const { conversations, activeConversationId } =
     conversationState;
@@ -152,7 +149,7 @@ function App() {
   const messages = activeConversation?.messages ?? [];
 
   // ==========================================
-  // SAVE CONVERSATIONS AUTOMATICALLY
+  // SAVE TO LOCAL STORAGE
   // ==========================================
 
   useEffect(() => {
@@ -162,10 +159,7 @@ function App() {
         JSON.stringify(conversationState)
       );
     } catch (error) {
-      console.error(
-        "Gagal menyimpan percakapan:",
-        error
-      );
+      console.error("Save Error:", error);
     }
   }, [conversationState]);
 
@@ -205,38 +199,25 @@ function App() {
   }, []);
 
   // ==========================================
-  // CREATE NEW CONVERSATION
+  // TOAST NOTIFICATION
   // ==========================================
 
-  const newChat = () => {
-    if (loading) return;
+  useEffect(() => {
+    if (!toast) return;
 
-    const newConversation = createConversation();
+    const timeout = setTimeout(() => {
+      setToast(null);
+    }, 3000);
 
-    setConversationState((prev) => ({
-      conversations: [
-        newConversation,
-        ...prev.conversations,
-      ],
-      activeConversationId: newConversation.id,
-    }));
+    return () => clearTimeout(timeout);
+  }, [toast]);
 
-    setMessage("");
-  };
-
-  // ==========================================
-  // SWITCH CONVERSATION
-  // ==========================================
-
-  const selectConversation = (id) => {
-    if (loading) return;
-
-    setConversationState((prev) => ({
-      ...prev,
-      activeConversationId: id,
-    }));
-
-    setMessage("");
+  const showToast = (text, type = "success") => {
+    setToast({
+      id: crypto.randomUUID(),
+      text,
+      type,
+    });
   };
 
   // ==========================================
@@ -259,7 +240,139 @@ function App() {
   };
 
   // ==========================================
-  // SEND MESSAGE WITH CONTEXT
+  // NEW CONVERSATION
+  // ==========================================
+
+  const newChat = () => {
+    if (loading) return;
+
+    const newConversation = createConversation();
+
+    setConversationState((prev) => ({
+      conversations: [
+        newConversation,
+        ...prev.conversations,
+      ],
+      activeConversationId: newConversation.id,
+    }));
+
+    setMessage("");
+  };
+
+  // ==========================================
+  // SELECT CONVERSATION
+  // ==========================================
+
+  const selectConversation = (id) => {
+    if (loading) return;
+
+    setConversationState((prev) => ({
+      ...prev,
+      activeConversationId: id,
+    }));
+
+    setMessage("");
+  };
+
+  // ==========================================
+  // RENAME CONVERSATION - CUSTOM MODAL
+  // ==========================================
+
+  const openRenameModal = (id) => {
+    if (loading) return;
+
+    const conversation = conversations.find(
+      (chat) => chat.id === id
+    );
+
+    if (!conversation) return;
+
+    setModalInput(conversation.title);
+
+    setModal({
+      type: "rename",
+      conversationId: id,
+    });
+  };
+
+  const renameConversation = () => {
+    if (!modal || modal.type !== "rename") return;
+
+    const title = modalInput.trim();
+
+    if (!title) {
+      showToast("Nama percakapan tidak boleh kosong.", "error");
+      return;
+    }
+
+    updateConversation(modal.conversationId, () => ({
+      title: title.slice(0, 60),
+    }));
+
+    setModal(null);
+    setModalInput("");
+
+    showToast("Nama percakapan berhasil diubah.");
+  };
+
+  // ==========================================
+  // DELETE CONVERSATION - CUSTOM MODAL
+  // ==========================================
+
+  const openDeleteModal = (id) => {
+    if (loading) return;
+
+    const conversation = conversations.find(
+      (chat) => chat.id === id
+    );
+
+    if (!conversation) return;
+
+    setModal({
+      type: "delete",
+      conversationId: id,
+      title: conversation.title,
+    });
+  };
+
+  const deleteConversation = () => {
+    if (!modal || modal.type !== "delete") return;
+
+    const id = modal.conversationId;
+
+    setConversationState((prev) => {
+      const remaining = prev.conversations.filter(
+        (chat) => chat.id !== id
+      );
+
+      if (remaining.length === 0) {
+        const newConversation = createConversation();
+
+        return {
+          conversations: [newConversation],
+          activeConversationId: newConversation.id,
+        };
+      }
+
+      const nextActiveId =
+        prev.activeConversationId === id
+          ? remaining[0].id
+          : prev.activeConversationId;
+
+      return {
+        conversations: remaining,
+        activeConversationId: nextActiveId,
+      };
+    });
+
+    setModal(null);
+    setMessage("");
+
+    showToast("Percakapan berhasil dihapus.");
+  };
+
+  // ==========================================
+  // SEND MESSAGE
   // ==========================================
 
   const sendMessage = async (event) => {
@@ -273,22 +386,19 @@ function App() {
 
     const conversationId = activeConversation.id;
 
-    // Build previous conversation history
     const conversationHistory = buildConversationHistory(
       activeConversation.messages
     );
 
-    // Append latest user message
     conversationHistory.push({
       role: "user",
       content: userMessage,
     });
 
-    // Update conversation title and messages
     updateConversation(conversationId, (chat) => ({
       title:
         chat.messages.length === 1 &&
-        chat.messages[0].role === "assistant"
+        chat.messages[0].text === WELCOME_MESSAGE
           ? userMessage.slice(0, 35) +
             (userMessage.length > 35 ? "..." : "")
           : chat.title,
@@ -318,35 +428,35 @@ function App() {
         ],
       }));
     } catch (error) {
-      const retryId = crypto.randomUUID();
+      console.error("Chat Error:", error);
 
       updateConversation(conversationId, (chat) => ({
         messages: [
           ...chat.messages,
           {
             role: "assistant",
-            text: "Maaf, Razers AI belum bisa memproses pesanmu. Silakan coba lagi.",
+            text:
+              "Maaf, Razers AI belum bisa memproses pesanmu. Silakan coba lagi.",
             isError: true,
             retryMessage: userMessage,
-            retryId,
+            retryId: crypto.randomUUID(),
           },
         ],
       }));
-
-      console.error("Chat Error:", error);
     } finally {
       setLoading(false);
     }
   };
 
   // ==========================================
-  // RETRY WITH CONVERSATION CONTEXT
+  // RETRY MESSAGE
   // ==========================================
 
-  const retryMessage = async (conversationId, failedMessage) => {
-    if (loading || !failedMessage.retryMessage) {
-      return;
-    }
+  const retryMessage = async (
+    conversationId,
+    failedMessage
+  ) => {
+    if (loading || !failedMessage.retryMessage) return;
 
     const conversation = conversationState.conversations.find(
       (chat) => chat.id === conversationId
@@ -360,12 +470,10 @@ function App() {
 
     if (errorIndex === -1) return;
 
-    // Restore conversation history before failed response
     const conversationHistory = buildConversationHistory(
       conversation.messages.slice(0, errorIndex)
     );
 
-    // Ensure latest message is from user
     if (
       conversationHistory.length === 0 ||
       conversationHistory[conversationHistory.length - 1].role !==
@@ -397,7 +505,7 @@ function App() {
           item.retryId === failedMessage.retryId
             ? {
                 ...item,
-                text: "Percobaan ulang gagal. Periksa koneksi backend atau layanan AI, lalu coba lagi.",
+                text: "Percobaan ulang gagal. Silakan coba lagi.",
               }
             : item
         ),
@@ -441,27 +549,59 @@ function App() {
           <div className="history-list">
 
             {conversations.map((chat) => (
-              <button
+              <div
+                className="sidebar-chat-item"
                 key={chat.id}
-                className={`sidebar-item ${
-                  chat.id === activeConversationId
-                    ? "active"
-                    : ""
-                }`}
-                onClick={() => selectConversation(chat.id)}
-                disabled={loading}
-                title={chat.title}
               >
-                <span>◫</span>
 
-                <span className="history-title">
-                  {chat.title}
-                </span>
-              </button>
+                <button
+                  className={`sidebar-item ${
+                    chat.id === activeConversationId
+                      ? "active"
+                      : ""
+                  }`}
+                  onClick={() => selectConversation(chat.id)}
+                  disabled={loading}
+                  title={chat.title}
+                >
+                  <span>◫</span>
+
+                  <span className="history-title">
+                    {chat.title}
+                  </span>
+                </button>
+
+                <div className="chat-actions">
+
+                  <button
+                    className="chat-action-button"
+                    onClick={() => openRenameModal(chat.id)}
+                    disabled={loading}
+                    title="Rename conversation"
+                    aria-label="Rename conversation"
+                  >
+                    ✎
+                  </button>
+
+                  <button
+                    className="chat-action-button delete"
+                    onClick={() => openDeleteModal(chat.id)}
+                    disabled={loading}
+                    title="Delete conversation"
+                    aria-label="Delete conversation"
+                  >
+                    ×
+                  </button>
+
+                </div>
+
+              </div>
             ))}
 
           </div>
         </div>
+
+        {/* SIDEBAR BOTTOM */}
 
         <div className="sidebar-bottom">
 
@@ -516,7 +656,8 @@ function App() {
 
           <div className="chat-content">
 
-            {messages.length === 1 ? (
+            {messages.length === 1 &&
+            messages[0].text === WELCOME_MESSAGE ? (
 
               <div className="welcome">
 
@@ -531,8 +672,8 @@ function App() {
                 </h1>
 
                 <p>
-                  Ask questions, explore ideas, and get things done
-                  with Razers AI.
+                  Ask questions, explore ideas, and get things
+                  done with Razers AI.
                 </p>
 
               </div>
@@ -578,8 +719,6 @@ function App() {
                   </div>
 
                 ))}
-
-                {/* LOADING INDICATOR */}
 
                 {loading && (
 
@@ -642,7 +781,8 @@ function App() {
             </form>
 
             <p className="composer-note">
-              Razers AI can make mistakes. Verify important information.
+              Razers AI can make mistakes. Verify important
+              information.
             </p>
 
           </div>
@@ -650,6 +790,142 @@ function App() {
         </section>
 
       </main>
+
+      {/* ========================================
+          CUSTOM MODAL
+      ======================================== */}
+
+      {modal && (
+        <div
+          className="razers-modal-overlay"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setModal(null);
+            }
+          }}
+        >
+          <div
+            className="razers-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="razers-modal-title"
+          >
+            {modal.type === "rename" ? (
+              <>
+                <div className="razers-modal-icon">
+                  ✎
+                </div>
+
+                <h2 id="razers-modal-title">
+                  Rename Conversation
+                </h2>
+
+                <p className="razers-modal-description">
+                  Masukkan nama percakapan baru:
+                </p>
+
+                <input
+                  className="razers-modal-input"
+                  type="text"
+                  value={modalInput}
+                  maxLength={60}
+                  autoFocus
+                  placeholder="Nama percakapan..."
+                  onChange={(event) =>
+                    setModalInput(event.target.value)
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      renameConversation();
+                    }
+
+                    if (event.key === "Escape") {
+                      setModal(null);
+                    }
+                  }}
+                />
+
+                <div className="razers-modal-actions">
+                  <button
+                    className="razers-modal-cancel"
+                    onClick={() => setModal(null)}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    className="razers-modal-confirm"
+                    onClick={renameConversation}
+                  >
+                    Save
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="razers-modal-icon danger">
+                  !
+                </div>
+
+                <h2 id="razers-modal-title">
+                  Delete Conversation?
+                </h2>
+
+                <p className="razers-modal-description">
+                  Yakin ingin menghapus percakapan{" "}
+                  <strong>{modal.title}</strong>?
+                  <br />
+                  Tindakan ini tidak dapat dibatalkan.
+                </p>
+
+                <div className="razers-modal-actions">
+                  <button
+                    className="razers-modal-cancel"
+                    onClick={() => setModal(null)}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    className="razers-modal-delete"
+                    onClick={deleteConversation}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================
+          TOAST NOTIFICATION
+      ======================================== */}
+
+      {toast && (
+        <div
+          key={toast.id}
+          className={`razers-toast ${toast.type}`}
+          role="status"
+        >
+          <span className="razers-toast-icon">
+            {toast.type === "success" ? "✓" : "!"}
+          </span>
+
+          <span className="razers-toast-text">
+            {toast.text}
+          </span>
+
+          <button
+            className="razers-toast-close"
+            onClick={() => setToast(null)}
+            aria-label="Tutup notifikasi"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
     </div>
   );
