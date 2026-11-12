@@ -221,6 +221,22 @@ function App() {
   };
 
   // ==========================================
+  // COPY AI MESSAGE
+  // ==========================================
+
+  const copyMessage = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+
+      showToast("Pesan berhasil disalin.");
+    } catch (error) {
+      console.error("Copy Error:", error);
+
+      showToast("Gagal menyalin pesan.", "error");
+    }
+  };
+
+  // ==========================================
   // UPDATE CONVERSATION
   // ==========================================
 
@@ -301,7 +317,10 @@ function App() {
     const title = modalInput.trim();
 
     if (!title) {
-      showToast("Nama percakapan tidak boleh kosong.", "error");
+      showToast(
+        "Nama percakapan tidak boleh kosong.",
+        "error"
+      );
       return;
     }
 
@@ -699,19 +718,39 @@ function App() {
 
                       <div>{item.text}</div>
 
-                      {item.isError && (
-                        <button
-                          className="retry-button"
-                          onClick={() =>
-                            retryMessage(
-                              activeConversationId,
-                              item
-                            )
-                          }
-                          disabled={loading}
-                        >
-                          ↻ Coba lagi
-                        </button>
+                      {/* AI MESSAGE ACTIONS */}
+
+                      {item.role === "assistant" && (
+                        <div className="message-actions">
+
+                          {!item.isError && (
+                            <button
+                              className="copy-message-button"
+                              onClick={() => copyMessage(item.text)}
+                              title="Copy response"
+                              aria-label="Copy response"
+                            >
+                              <span>▢</span>
+                              <span>Copy</span>
+                            </button>
+                          )}
+
+                          {item.isError && (
+                            <button
+                              className="retry-button"
+                              onClick={() =>
+                                retryMessage(
+                                  activeConversationId,
+                                  item
+                                )
+                              }
+                              disabled={loading}
+                            >
+                              ↻ Coba lagi
+                            </button>
+                          )}
+
+                        </div>
                       )}
 
                     </div>
