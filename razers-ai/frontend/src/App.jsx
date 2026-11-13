@@ -98,24 +98,45 @@ function buildConversationHistory(messages) {
 // ==========================================
 
 async function requestAI(messages) {
-  const response = await fetch(`${API_URL}/chat`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ messages }),
-  });
+  let response;
 
-  const data = await response.json().catch(() => ({}));
+  // NETWORK ERROR
 
-  if (!response.ok) {
+  try {
+    response = await fetch(`${API_URL}/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ messages }),
+    });
+  } catch (error) {
+    console.error("Network Error:", error);
+
     throw new Error(
-      data.detail || `Server error (${response.status})`
+      "Tidak dapat terhubung ke backend Razers AI. Pastikan backend sedang berjalan."
     );
   }
 
+  // PARSE RESPONSE
+
+  const data = await response.json().catch(() => ({}));
+
+  // HTTP ERROR
+
+  if (!response.ok) {
+    throw new Error(
+      data.detail ||
+        `Terjadi kesalahan server (${response.status}).`
+    );
+  }
+
+  // EMPTY RESPONSE
+
   if (!data.reply) {
-    throw new Error("Server returned an empty response.");
+    throw new Error(
+      "Razers AI tidak memberikan respons. Silakan coba lagi."
+    );
   }
 
   return data.reply;
@@ -135,6 +156,7 @@ function App() {
     useState("connecting");
 
   // Custom modal and notification
+
   const [modal, setModal] = useState(null);
   const [modalInput, setModalInput] = useState("");
   const [toast, setToast] = useState(null);
@@ -455,7 +477,8 @@ function App() {
           {
             role: "assistant",
             text:
-              "Maaf, Razers AI belum bisa memproses pesanmu. Silakan coba lagi.",
+              error.message ||
+              "Razers AI gagal memproses pesan. Silakan coba lagi.",
             isError: true,
             retryMessage: userMessage,
             retryId: crypto.randomUUID(),
@@ -524,7 +547,9 @@ function App() {
           item.retryId === failedMessage.retryId
             ? {
                 ...item,
-                text: "Percobaan ulang gagal. Silakan coba lagi.",
+                text:
+                  error.message ||
+                  "Percobaan ulang gagal. Silakan coba lagi.",
               }
             : item
         ),

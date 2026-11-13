@@ -6,7 +6,13 @@ from typing import Literal
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from openai import OpenAI, OpenAIError
+from openai import (
+    OpenAI,
+    OpenAIError,
+    APIConnectionError,
+    APITimeoutError,
+    APIStatusError
+)
 from pydantic import BaseModel, Field
 
 
@@ -17,14 +23,26 @@ from pydantic import BaseModel, Field
 BASE_DIR = Path(__file__).resolve().parent
 ENV_PATH = BASE_DIR / ".env"
 
-load_dotenv(dotenv_path=ENV_PATH)
+load_dotenv(dotenv_path=ENV_PATH, override=True)
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 MOCK_MODE = os.getenv(
     "MOCK_MODE",
     "true"
-).lower() == "true"
+).strip().lower() == "true"
+
+
+# ==========================================
+# CONFIGURATION DEBUGGING
+# ==========================================
+
+print("\n========== RAZERS AI CONFIG ==========")
+print("ENV PATH:", ENV_PATH)
+print("ENV FILE EXISTS:", ENV_PATH.exists())
+print("MOCK MODE:", MOCK_MODE)
+print("OPENAI API KEY LOADED:", bool(OPENAI_API_KEY))
+print("======================================\n")
 
 
 # ==========================================
@@ -35,7 +53,9 @@ client = None
 
 if OPENAI_API_KEY:
     client = OpenAI(
-        api_key=OPENAI_API_KEY
+        api_key=OPENAI_API_KEY,
+        timeout=30.0,
+        max_retries=2
     )
 
 
@@ -46,7 +66,7 @@ if OPENAI_API_KEY:
 app = FastAPI(
     title="Razers AI API",
     description="Backend API for Razers AI Desktop",
-    version="0.4.0"
+    version="0.6.0"
 )
 
 
@@ -99,7 +119,6 @@ def generate_mock_reply(
 ) -> str:
 
     latest_message = messages[-1].content
-
     previous_messages = messages[:-1]
 
     previous_user_messages = [
@@ -139,7 +158,7 @@ def home():
     return {
         "app": "Razers AI",
         "status": "running",
-        "version": "0.4.0",
+        "version": "0.6.0",
         "mode": "mock" if MOCK_MODE else "production"
     }
 
@@ -168,7 +187,7 @@ def health_check():
 )
 def chat(request: ChatRequest):
 
-    # Ensure the latest message comes from the user
+    # Validate latest message
 
     if request.messages[-1].role != "user":
 
@@ -196,7 +215,7 @@ def chat(request: ChatRequest):
             detail="OpenAI API Key belum dikonfigurasi."
         )
 
-    # Convert messages into OpenAI input format
+    # Convert conversation history
 
     conversation_history = [
         {
@@ -221,16 +240,91 @@ def chat(request: ChatRequest):
 
             raise HTTPException(
                 status_code=502,
-                detail="OpenAI returned an empty response."
+                detail="AI tidak memberikan respons. Silakan coba lagi."
             )
 
         return ChatResponse(
             reply=reply
         )
 
-    except HTTPException:
+    # TIMEOUT ERROR
 
-        raise
+    except APITimeoutError as error:
+
+        print(
+            f"OpenAI Timeout: {error}",
+            flush=True
+        )
+
+        raise HTTPException(
+            status_code=504,
+            detail="Waktu tunggu AI habis. Silakan coba lagi."
+        ) from error
+
+    # CONNECTION ERROR
+
+    except APIConnectionError as error:
+
+        print(
+            f"OpenAI Connection Error: {error}",
+            flush=True
+        )
+
+        raise HTTPException(
+            status_code=503,
+            detail="Gagal terhubung ke OpenAI. Periksa koneksi internet kamu."
+        ) from error
+
+    # OPENAI API STATUS ERRORS
+
+    except APIStatusError as error:
+
+        status_code = error.status_code
+
+        print(
+            f"OpenAI API Error: {status_code} - {type(error).__name__}",
+            flush=True
+        )
+
+        if status_code == 400:
+
+            detail = "Permintaan tidak valid. Periksa pesan yang dikirim."
+
+        elif status_code == 401:
+
+            detail = "OpenAI API Key tidak valid. Periksa konfigurasi API Key."
+
+        elif status_code == 403:
+
+            detail = "Akses OpenAI API ditolak. Periksa izin akun kamu."
+
+        elif status_code == 404:
+
+            detail = "Model AI tidak ditemukan atau tidak tersedia."
+
+        elif status_code == 429:
+
+            detail = (
+                "Kuota API habis atau batas penggunaan tercapai. "
+                "Periksa billing dan usage OpenAI."
+            )
+
+        elif status_code >= 500:
+
+            detail = "Layanan OpenAI sedang mengalami gangguan. Coba lagi nanti."
+
+        else:
+
+            detail = "OpenAI API mengalami kesalahan. Silakan coba lagi."
+
+        raise HTTPException(
+            status_code=status_code if status_code in [
+                400, 401, 403, 404, 429
+            ] else 502,
+            detail=detail
+        ) from error
+
+    # OTHER OPENAI ERRORS
 
     except OpenAIError as error:
 
@@ -241,8 +335,10 @@ def chat(request: ChatRequest):
 
         raise HTTPException(
             status_code=502,
-            detail="OpenAI API request failed. Check backend terminal."
+            detail="Terjadi kesalahan pada layanan AI."
         ) from error
+
+    # UNEXPECTED BACKEND ERRORS
 
     except Exception as error:
 
@@ -253,5 +349,5 @@ def chat(request: ChatRequest):
 
         raise HTTPException(
             status_code=500,
-            detail="An unexpected backend error occurred."
+            detail="Terjadi kesalahan pada backend Razers AI."
         ) from error
