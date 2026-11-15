@@ -11,7 +11,7 @@ from openai import (
     OpenAIError,
     APIConnectionError,
     APITimeoutError,
-    APIStatusError
+    APIStatusError,
 )
 from pydantic import BaseModel, Field
 
@@ -27,10 +27,33 @@ load_dotenv(dotenv_path=ENV_PATH, override=True)
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+OPENAI_MODEL = os.getenv(
+    "OPENAI_MODEL",
+    "gpt-4.1-mini"
+).strip()
+
 MOCK_MODE = os.getenv(
     "MOCK_MODE",
     "true"
 ).strip().lower() == "true"
+
+MAX_MESSAGES = 50
+MAX_MESSAGE_LENGTH = 10000
+
+SYSTEM_INSTRUCTIONS = """
+Kamu adalah Razers AI, personal AI assistant yang membantu pengguna
+dalam berbagai kebutuhan.
+
+Aturan komunikasi:
+1. Berikan jawaban yang jelas, akurat, dan mudah dipahami.
+2. Gunakan konteks percakapan sebelumnya untuk memahami pertanyaan lanjutan.
+3. Jangan meminta pengguna mengulang informasi yang sudah tersedia
+   dalam percakapan.
+4. Jika informasi tidak cukup, tanyakan klarifikasi.
+5. Jangan mengarang fakta atau mengklaim sesuatu yang belum dilakukan.
+6. Gunakan bahasa yang sesuai dengan bahasa pengguna.
+7. Berikan jawaban yang terstruktur dan relevan.
+"""
 
 
 # ==========================================
@@ -42,6 +65,7 @@ print("ENV PATH:", ENV_PATH)
 print("ENV FILE EXISTS:", ENV_PATH.exists())
 print("MOCK MODE:", MOCK_MODE)
 print("OPENAI API KEY LOADED:", bool(OPENAI_API_KEY))
+print("OPENAI MODEL:", OPENAI_MODEL)
 print("======================================\n")
 
 
@@ -66,7 +90,7 @@ if OPENAI_API_KEY:
 app = FastAPI(
     title="Razers AI API",
     description="Backend API for Razers AI Desktop",
-    version="0.6.1"
+    version="0.7.0"
 )
 
 
@@ -95,19 +119,36 @@ class ChatMessage(BaseModel):
 
     content: str = Field(
         min_length=1,
-        max_length=10000
+        max_length=MAX_MESSAGE_LENGTH
     )
 
 
 class ChatRequest(BaseModel):
     messages: list[ChatMessage] = Field(
         min_length=1,
-        max_length=50
+        max_length=MAX_MESSAGES
     )
 
 
 class ChatResponse(BaseModel):
     reply: str
+
+
+# ==========================================
+# CONVERSATION CONTEXT MANAGER
+# ==========================================
+
+def build_conversation_context(
+    messages: list[ChatMessage]
+) -> list[dict]:
+
+    return [
+        {
+            "role": message.role,
+            "content": message.content
+        }
+        for message in messages
+    ]
 
 
 # ==========================================
@@ -119,11 +160,10 @@ def generate_mock_reply(
 ) -> str:
 
     latest_message = messages[-1].content
-    previous_messages = messages[:-1]
 
     previous_user_messages = [
         message.content
-        for message in previous_messages
+        for message in messages[:-1]
         if message.role == "user"
     ]
 
@@ -158,7 +198,7 @@ def home():
     return {
         "app": "Razers AI",
         "status": "running",
-        "version": "0.6.1",
+        "version": "0.7.0",
         "mode": "mock" if MOCK_MODE else "production"
     }
 
@@ -173,7 +213,8 @@ def health_check():
     return {
         "status": "healthy",
         "mode": "mock" if MOCK_MODE else "production",
-        "openai_configured": client is not None
+        "openai_configured": client is not None,
+        "model": OPENAI_MODEL
     }
 
 
@@ -201,9 +242,7 @@ def chat(request: ChatRequest):
     if MOCK_MODE:
 
         return ChatResponse(
-            reply=generate_mock_reply(
-                request.messages
-            )
+            reply=generate_mock_reply(request.messages)
         )
 
     # CHECK OPENAI CONFIGURATION
@@ -215,28 +254,25 @@ def chat(request: ChatRequest):
             detail="OpenAI API Key belum dikonfigurasi."
         )
 
-    # CONVERT CONVERSATION HISTORY
+    # BUILD CONVERSATION CONTEXT
 
-    conversation_history = [
-        {
-            "role": item.role,
-            "content": item.content
-        }
-        for item in request.messages
-    ]
+    conversation_history = build_conversation_context(
+        request.messages
+    )
 
     # OPENAI REQUEST
 
     try:
 
         response = client.responses.create(
-            model="gpt-4.1-mini",
+            model=OPENAI_MODEL,
+            instructions=SYSTEM_INSTRUCTIONS,
             input=conversation_history
         )
 
         reply = response.output_text
 
-        if not reply:
+        if not reply or not reply.strip():
 
             raise HTTPException(
                 status_code=502,
@@ -244,7 +280,7 @@ def chat(request: ChatRequest):
             )
 
         return ChatResponse(
-            reply=reply
+            reply=reply.strip()
         )
 
     # TIMEOUT ERROR
@@ -252,7 +288,7 @@ def chat(request: ChatRequest):
     except APITimeoutError as error:
 
         print(
-            f"OpenAI Timeout: {error}",
+            f"OpenAI Timeout: {type(error).__name__}",
             flush=True
         )
 
@@ -266,7 +302,7 @@ def chat(request: ChatRequest):
     except APIConnectionError as error:
 
         print(
-            f"OpenAI Connection Error: {error}",
+            f"OpenAI Connection Error: {type(error).__name__}",
             flush=True
         )
 
@@ -287,40 +323,37 @@ def chat(request: ChatRequest):
         )
 
         if status_code == 400:
-
             detail = "Permintaan tidak valid. Periksa pesan yang dikirim."
 
         elif status_code == 401:
-
             detail = "OpenAI API Key tidak valid. Periksa konfigurasi API Key."
 
         elif status_code == 403:
-
             detail = "Akses OpenAI API ditolak. Periksa izin akun kamu."
 
         elif status_code == 404:
-
             detail = "Model AI tidak ditemukan atau tidak tersedia."
 
         elif status_code == 429:
-
             detail = (
                 "Kuota API habis atau batas penggunaan tercapai. "
                 "Periksa billing dan usage OpenAI."
             )
 
         elif status_code >= 500:
-
             detail = "Layanan OpenAI sedang mengalami gangguan. Coba lagi nanti."
 
         else:
-
             detail = "OpenAI API mengalami kesalahan. Silakan coba lagi."
 
+        mapped_status = (
+            status_code
+            if status_code in [400, 401, 403, 404, 429]
+            else 502
+        )
+
         raise HTTPException(
-            status_code=status_code if status_code in [
-                400, 401, 403, 404, 429
-            ] else 502,
+            status_code=mapped_status,
             detail=detail
         ) from error
 
@@ -329,7 +362,7 @@ def chat(request: ChatRequest):
     except OpenAIError as error:
 
         print(
-            f"OpenAI Error: {type(error).__name__}: {error}",
+            f"OpenAI Error: {type(error).__name__}",
             flush=True
         )
 
