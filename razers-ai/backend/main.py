@@ -66,7 +66,7 @@ if OPENAI_API_KEY:
 app = FastAPI(
     title="Razers AI API",
     description="Backend API for Razers AI Desktop",
-    version="0.6.0"
+    version="0.6.1"
 )
 
 
@@ -158,7 +158,7 @@ def home():
     return {
         "app": "Razers AI",
         "status": "running",
-        "version": "0.6.0",
+        "version": "0.6.1",
         "mode": "mock" if MOCK_MODE else "production"
     }
 
@@ -187,7 +187,7 @@ def health_check():
 )
 def chat(request: ChatRequest):
 
-    # Validate latest message
+    # VALIDATE LATEST MESSAGE
 
     if request.messages[-1].role != "user":
 
@@ -206,7 +206,7 @@ def chat(request: ChatRequest):
             )
         )
 
-    # Check OpenAI configuration
+    # CHECK OPENAI CONFIGURATION
 
     if not client:
 
@@ -215,7 +215,7 @@ def chat(request: ChatRequest):
             detail="OpenAI API Key belum dikonfigurasi."
         )
 
-    # Convert conversation history
+    # CONVERT CONVERSATION HISTORY
 
     conversation_history = [
         {
@@ -337,6 +337,11 @@ def chat(request: ChatRequest):
             status_code=502,
             detail="Terjadi kesalahan pada layanan AI."
         ) from error
+
+    # PRESERVE HTTP EXCEPTIONS
+
+    except HTTPException:
+        raise
 
     # UNEXPECTED BACKEND ERRORS
 
