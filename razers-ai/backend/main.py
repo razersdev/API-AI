@@ -1,5 +1,6 @@
 
 import os
+import math
 from pathlib import Path
 from typing import Literal
 
@@ -40,6 +41,11 @@ MOCK_MODE = os.getenv(
 MAX_MESSAGES = 50
 MAX_MESSAGE_LENGTH = 10000
 
+# Context Management Configuration
+MAX_CONTEXT_TOKENS = int(
+    os.getenv("MAX_CONTEXT_TOKENS", "12000")
+)
+
 SYSTEM_INSTRUCTIONS = """
 Kamu adalah Razers AI, personal AI assistant yang membantu pengguna
 dalam berbagai kebutuhan.
@@ -66,6 +72,7 @@ print("ENV FILE EXISTS:", ENV_PATH.exists())
 print("MOCK MODE:", MOCK_MODE)
 print("OPENAI API KEY LOADED:", bool(OPENAI_API_KEY))
 print("OPENAI MODEL:", OPENAI_MODEL)
+print("MAX CONTEXT TOKENS:", MAX_CONTEXT_TOKENS)
 print("======================================\n")
 
 
@@ -90,7 +97,7 @@ if OPENAI_API_KEY:
 app = FastAPI(
     title="Razers AI API",
     description="Backend API for Razers AI Desktop",
-    version="0.7.0"
+    version="0.8.0"
 )
 
 
@@ -135,19 +142,109 @@ class ChatResponse(BaseModel):
 
 
 # ==========================================
+# CONTEXT TOKEN ESTIMATOR
+# ==========================================
+
+def estimate_message_tokens(message: dict) -> int:
+    """
+    Estimate token usage from message content.
+
+    This is a rough estimation, not an official tokenizer.
+    """
+
+    content = message["content"]
+
+    estimated_tokens = math.ceil(len(content) / 3)
+
+    # Approximate message formatting overhead
+    return estimated_tokens + 4
+
+
+def estimate_context_tokens(
+    messages: list[dict]
+) -> int:
+
+    return sum(
+        estimate_message_tokens(message)
+        for message in messages
+    )
+
+
+# ==========================================
 # CONVERSATION CONTEXT MANAGER
 # ==========================================
 
 def build_conversation_context(
     messages: list[ChatMessage]
 ) -> list[dict]:
+    """
+    Build conversation context while preserving
+    the newest conversation turns.
 
-    return [
+    Older complete turns are removed when the
+    estimated context budget is exceeded.
+    """
+
+    # Convert Pydantic models into dictionaries
+    formatted_messages = [
         {
             "role": message.role,
             "content": message.content
         }
         for message in messages
+    ]
+
+    # Group messages into conversation turns
+    conversation_turns = []
+
+    current_turn = None
+
+    for message in formatted_messages:
+
+        if message["role"] == "user":
+
+            if current_turn is not None:
+                conversation_turns.append(current_turn)
+
+            current_turn = [message]
+
+        elif message["role"] == "assistant":
+
+            if current_turn is not None:
+                current_turn.append(message)
+
+    if current_turn is not None:
+        conversation_turns.append(current_turn)
+
+    # Preserve newest turns first
+    selected_turns = []
+    used_tokens = 0
+
+    for turn in reversed(conversation_turns):
+
+        turn_tokens = estimate_context_tokens(turn)
+
+        # Always preserve the newest turn
+        if not selected_turns:
+
+            selected_turns.append(turn)
+            used_tokens += turn_tokens
+            continue
+
+        # Stop adding older turns if budget is exceeded
+        if used_tokens + turn_tokens > MAX_CONTEXT_TOKENS:
+            break
+
+        selected_turns.append(turn)
+        used_tokens += turn_tokens
+
+    # Restore chronological order
+    selected_turns.reverse()
+
+    return [
+        message
+        for turn in selected_turns
+        for message in turn
     ]
 
 
@@ -156,15 +253,15 @@ def build_conversation_context(
 # ==========================================
 
 def generate_mock_reply(
-    messages: list[ChatMessage]
+    messages: list[dict]
 ) -> str:
 
-    latest_message = messages[-1].content
+    latest_message = messages[-1]["content"]
 
     previous_user_messages = [
-        message.content
+        message["content"]
         for message in messages[:-1]
-        if message.role == "user"
+        if message["role"] == "user"
     ]
 
     if previous_user_messages:
@@ -176,15 +273,17 @@ def generate_mock_reply(
             "Saat ini aku sedang berjalan dalam MOCK MODE.\n\n"
             f"Pesan sebelumnya: {previous_message}\n\n"
             f"Pesan terbaru: {latest_message}\n\n"
-            f"Total pesan yang diterima: {len(messages)}\n\n"
-            "Backend berhasil menerima riwayat percakapan kamu!"
+            f"Total pesan dalam konteks: {len(messages)}\n\n"
+            f"Estimasi token konteks: "
+            f"{estimate_context_tokens(messages)}\n\n"
+            "Context Manager berhasil memproses riwayat percakapan!"
         )
 
     return (
         "Halo! Aku Razers AI. 🤖\n\n"
         "Saat ini aku sedang berjalan dalam MOCK MODE.\n\n"
         f"Pesan kamu: {latest_message}\n\n"
-        "Backend berhasil menerima pesan kamu!"
+        "Context Manager berhasil menerima pesan kamu!"
     )
 
 
@@ -198,7 +297,7 @@ def home():
     return {
         "app": "Razers AI",
         "status": "running",
-        "version": "0.7.0",
+        "version": "0.8.0",
         "mode": "mock" if MOCK_MODE else "production"
     }
 
@@ -214,7 +313,8 @@ def health_check():
         "status": "healthy",
         "mode": "mock" if MOCK_MODE else "production",
         "openai_configured": client is not None,
-        "model": OPENAI_MODEL
+        "model": OPENAI_MODEL,
+        "max_context_tokens": MAX_CONTEXT_TOKENS
     }
 
 
@@ -237,12 +337,29 @@ def chat(request: ChatRequest):
             detail="The last message must come from the user."
         )
 
+    # BUILD CONVERSATION CONTEXT
+
+    conversation_history = build_conversation_context(
+        request.messages
+    )
+
+    context_tokens = estimate_context_tokens(
+        conversation_history
+    )
+
+    print(
+        f"Context Manager: "
+        f"{len(conversation_history)} messages, "
+        f"approximately {context_tokens} tokens",
+        flush=True
+    )
+
     # MOCK MODE
 
     if MOCK_MODE:
 
         return ChatResponse(
-            reply=generate_mock_reply(request.messages)
+            reply=generate_mock_reply(conversation_history)
         )
 
     # CHECK OPENAI CONFIGURATION
@@ -253,12 +370,6 @@ def chat(request: ChatRequest):
             status_code=503,
             detail="OpenAI API Key belum dikonfigurasi."
         )
-
-    # BUILD CONVERSATION CONTEXT
-
-    conversation_history = build_conversation_context(
-        request.messages
-    )
 
     # OPENAI REQUEST
 
