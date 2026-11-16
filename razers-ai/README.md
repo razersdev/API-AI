@@ -1,52 +1,47 @@
 # Razers AI
 
-**A desktop AI assistant built with React, Electron, FastAPI, and OpenAI API.**
+**Personal AI Assistant — Desktop Application**
 
-Razers AI is a personal AI desktop assistant designed to provide an interactive AI chat experience through a modern interface. It uses React and Vite for the frontend, Electron for the desktop application architecture, and FastAPI for the backend.
+Razers AI is a personal AI assistant project built with React, Vite, and FastAPI. The application is designed to provide an interactive AI chat experience with conversation history and contextual responses.
 
-> **Project Status:** In Development
+## Current Version
 
----
+**Backend:** `0.7.0`  
+**Project Status:** In Development
 
 ## Features
 
-### Chat Experience
-- Modern and responsive chat interface
-- Send and receive messages through the backend API
-- AI response loading indicator
-- Error handling for failed API requests
-- Retry failed messages
-- Conversation context handling
+### Implemented
+- Interactive AI chat interface.
+- Create new conversations.
+- Conversation history management.
+- Rename and delete conversations.
+- Local conversation persistence using Local Storage.
+- Backend health monitoring.
+- Mock Mode for development and testing.
+- OpenAI API integration.
+- Retry failed messages.
+- Copy AI responses.
+- Backend request validation and error handling.
 
-### Conversation Management
-- Multiple conversations
-- Create new conversations
-- Automatic conversation titles
-- Rename conversations
-- Delete conversations
-- Custom confirmation modal
-- Custom toast notifications
-- Conversation history stored locally using Local Storage
-- Automatic local data persistence
+### Conversation Context Engine — v0.7.0
+- Send previous messages as conversation context.
+- Separate conversation history for each chat.
+- System instructions for Razers AI identity and behavior.
+- Dedicated conversation context builder.
+- Configurable OpenAI model through environment variables.
+- Message count and message length validation.
 
-### Backend Integration
-- REST API integration between frontend and backend
-- Backend health monitoring
-- OpenAI API integration using the Responses API
-- Environment-based configuration
-- Mock Mode for development and testing
-- HTTP error handling
+**Development status:** Implementation prepared; testing and verification pending.
 
----
-
-## Tech Stack
+## Technology Stack
 
 ### Frontend
 - React
 - Vite
-- Electron (desktop architecture in development)
 - JavaScript
 - CSS
+- Browser Local Storage
 
 ### Backend
 - Python
@@ -56,17 +51,20 @@ Razers AI is a personal AI desktop assistant designed to provide an interactive 
 - Python-dotenv
 - OpenAI Python SDK
 
-### AI Integration
-- OpenAI API
+### AI
 - OpenAI Responses API
-- GPT-4.1 mini (`gpt-4.1-mini`)
-
----
+- Default model: `gpt-4.1-mini`
 
 ## Project Structure
 
 ```text
 razers-ai/
+│
+├── backend/
+│   ├── main.py
+│   ├── requirements.txt
+│   └── .env                  # Local only; never commit
+│
 ├── frontend/
 │   ├── electron/
 │   │   └── main.cjs
@@ -76,33 +74,17 @@ razers-ai/
 │   │   └── main.jsx
 │   ├── index.html
 │   ├── package.json
-│   ├── package-lock.json
 │   └── vite.config.js
 │
-├── backend/
-│   ├── main.py
-│   ├── requirements.txt
-│   ├── Dockerfile
-│   └── .env
-│
-├── docker-compose.yml
 ├── .env.example
 ├── .gitignore
+├── docker-compose.yml
 └── README.md
 ```
 
----
+Some components, including Electron and Docker configuration, are still under development.
 
 ## Getting Started
-
-### Prerequisites
-
-Make sure you have installed:
-
-- Python
-- Node.js and npm
-- Git
-- OpenAI API key (required for real AI responses)
 
 ### 1. Clone Repository
 
@@ -111,16 +93,21 @@ git clone https://github.com/razersdev/API-AI.git
 cd API-AI
 ```
 
-### 2. Run Backend
+### 2. Backend Setup
 
-Open a terminal:
+Navigate to the backend directory:
 
 ```bash
 cd backend
+```
+
+Create and activate a virtual environment:
+
+```bash
 python -m venv .venv
 ```
 
-Activate the virtual environment on Windows:
+Windows PowerShell:
 
 ```powershell
 .venv\Scripts\Activate.ps1
@@ -129,33 +116,30 @@ Activate the virtual environment on Windows:
 Install dependencies:
 
 ```bash
-python -m pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 
-### 3. Configure Environment Variables
+### 3. Environment Configuration
 
-Create a `.env` file inside the `backend` directory.
-
-For development without API credits, use Mock Mode:
+Create a `.env` file inside the `backend` directory:
 
 ```env
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-4.1-mini
 MOCK_MODE=true
 ```
 
-For real AI responses, configure your OpenAI API key:
+Configuration:
 
-```env
-MOCK_MODE=false
-OPENAI_API_KEY=your_openai_api_key
-```
+| Variable | Description |
+|---|---|
+| `OPENAI_API_KEY` | OpenAI API key |
+| `OPENAI_MODEL` | OpenAI model selection |
+| `MOCK_MODE` | Enable or disable mock responses |
 
-**Important:**
-- Keep your API key private.
-- Never commit the `.env` file to GitHub.
-- Use `.env.example` as a template without including real credentials.
-- Mock Mode allows frontend and backend development without making real OpenAI API requests.
+**Important:** Never commit `.env` or expose your API key publicly.
 
-### 4. Start Backend Server
+### 4. Run Backend
 
 From the `backend` directory:
 
@@ -163,158 +147,126 @@ From the `backend` directory:
 python -m uvicorn main:app --reload
 ```
 
-Backend runs at:
+Backend URL:
 
-`http://127.0.0.1:8000`
+```text
+http://127.0.0.1:8000
+```
 
 API documentation:
 
-`http://127.0.0.1:8000/docs`
+```text
+http://127.0.0.1:8000/docs
+```
 
 Health check:
 
-`http://127.0.0.1:8000/health`
+```text
+http://127.0.0.1:8000/health
+```
 
-### 5. Run Frontend
+### 5. Frontend Setup
 
 Open another terminal:
 
 ```bash
 cd frontend
+```
+
+Install dependencies:
+
+```bash
 npm install
+```
+
+Start development server:
+
+```bash
 npm run dev
 ```
 
-Frontend runs at:
+Frontend URL:
 
-`http://localhost:5173`
+```text
+http://localhost:5173
+```
 
----
+## API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/` | API information |
+| GET | `/health` | Backend health check |
+| POST | `/chat` | Send chat messages and conversation context |
+
+### Chat Request Example
+
+```json
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "My name is Razers."
+    },
+    {
+      "role": "assistant",
+      "content": "Hello, Razers!"
+    },
+    {
+      "role": "user",
+      "content": "What is my name?"
+    }
+  ]
+}
+```
 
 ## Development Roadmap
 
-### Completed
+### CP38 — End-to-End Testing
+- CH01 — System Audit & Preparation
+- CH02 — Backend API Testing
+- CH03 — Frontend Interaction Testing
+- CH04 — Full-Stack Integration Testing
+- CH05 — Error & Failure Scenario Testing
+- CH06 — Regression Testing
+- CH07 — Final E2E Validation
 
-- [x] Backend Foundation
-- [x] Frontend Foundation
-- [x] Functional Chat Interface
-- [x] Modern UI Design
-- [x] Backend Health Check
-- [x] REST API Integration
-- [x] OpenAI SDK Installation
-- [x] OpenAI API Configuration
-- [x] OpenAI Responses API Integration
-- [x] Chat Loading Indicator
-- [x] Frontend Error Handling
-- [x] Retry Failed Messages
-- [x] Conversation History
-- [x] Local Storage Persistence
-- [x] Multiple Conversations
-- [x] Automatic Conversation Titles
-- [x] Create New Conversation
-- [x] Rename Conversation
-- [x] Delete Conversation
-- [x] Custom Confirmation Modal
-- [x] Custom Toast Notifications
-- [x] Conversation Management
-- [x] Backend Configuration Audit
-- [x] Frontend Configuration Audit
-- [x] Environment & Dependency Audit
-- [x] Backend API Testing
-- [x] HTTP Exception Handling Improvement
-- [x] Git Checkpoint and GitHub Push
-
-### In Progress
-
-- [ ] End-to-End Testing
-  - [x] System Audit & Preparation
-  - [x] Backend API Testing
-  - [ ] Frontend Interaction Testing
-  - [ ] Full-Stack Integration Testing
-  - [ ] Error & Failure Scenario Testing
-  - [ ] Regression Testing
-  - [ ] Final E2E Validation
-- [ ] End-to-End AI Response Testing
-- [ ] Conversation Context and Memory Improvements
-
-### Planned
-
-- [ ] Database Integration
-- [ ] Persistent Conversation Memory
-- [ ] Electron Desktop Application Integration
-- [ ] Desktop Application Packaging
-- [ ] Docker Production Setup
-- [ ] Production Deployment
-
----
+### CP39 — Conversation Context Engine
+- CH01 — Conversation Flow Audit
+- CH02 — Context Management
+- CH03 — Backend Integration
+- CH04 — Frontend Integration
+- CH05 — Context Testing
 
 ## Current Development Status
 
-Razers AI has completed its initial chat foundation and conversation management features.
-
-The frontend supports multiple conversations, automatic conversation titles, local conversation persistence, rename and delete operations, custom confirmation modals, and toast notifications.
-
-The FastAPI backend provides chat and health-check endpoints. OpenAI integration has been implemented using the Responses API with the `gpt-4.1-mini` model.
-
-The backend is currently at version **0.6.1**.
-
-Mock Mode is available for development and testing without requiring active OpenAI API credits.
-
-### Testing Progress
-
-The project is currently undergoing CP38 — End-to-End Testing.
-
-- **CH01 — System Audit & Preparation:** Completed
-- **CH02 — Backend API Testing:** Completed
-- **Git Checkpoint:** Committed and pushed to GitHub
-- **CH03 — Frontend Interaction Testing:** Next
-
-The successful live OpenAI response still requires further verification. Previous testing encountered an API quota limitation.
-
-### Current Architecture
-
-- Frontend: React + Vite
-- Backend: Python + FastAPI
-- AI Provider: OpenAI Responses API
-- Conversation Storage: Browser Local Storage
-- Desktop Architecture: Electron integration in development
-- Containerization: Docker configuration not yet implemented
-
-Conversation history is currently stored in browser Local Storage and sent to the backend as conversation context. Database-backed persistence and more advanced memory capabilities remain part of the development roadmap.
-
----
-
-## Security
-
-- API credentials are stored in backend environment variables.
-- The `.env` file is excluded from Git tracking.
-- API requests are handled by the backend rather than exposing credentials in the frontend.
-- Mock Mode can be used for development without real API credentials.
-
----
+| Component | Status |
+|---|---|
+| React + Vite frontend | Implemented |
+| FastAPI backend | Implemented |
+| Local conversation storage | Implemented |
+| OpenAI integration | Implemented |
+| Mock Mode | Implemented |
+| Conversation Context v0.7.0 | Testing pending |
+| Electron integration | In development |
+| Docker configuration | Pending |
 
 ## Future Goals
 
-Razers AI aims to evolve into a personal desktop assistant with:
+- Streaming AI responses.
+- Long-term AI memory.
+- Edit and regenerate messages.
+- File upload and document analysis.
+- Voice assistant.
+- Multiple AI providers.
+- Local AI integration using Ollama.
+- Desktop application packaging.
+- Automated testing and deployment.
 
-- Persistent conversation memory
-- Database-backed conversation management
-- Improved AI interaction
-- Native desktop experience
-- Production-ready architecture
-- Reliable and scalable backend services
-- Docker-based deployment
+## Repository
 
----
-
-## Author
-
-**RazersDev**
-
-GitHub: [@razersdev](https://github.com/razersdev)
-
-Repository: [Razers AI](https://github.com/razersdev/API-AI)
+GitHub: https://github.com/razersdev/API-AI
 
 ---
 
-*Built with curiosity, consistency, and a passion for technology.*
+**Razers AI — Built to become a personal AI assistant.**
