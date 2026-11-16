@@ -97,7 +97,7 @@ if OPENAI_API_KEY:
 app = FastAPI(
     title="Razers AI API",
     description="Backend API for Razers AI Desktop",
-    version="0.8.0"
+    version="0.8.1"
 )
 
 
@@ -131,6 +131,13 @@ class ChatMessage(BaseModel):
 
 
 class ChatRequest(BaseModel):
+
+    # Conversation Isolation
+    conversation_id: str = Field(
+        min_length=1,
+        max_length=100
+    )
+
     messages: list[ChatMessage] = Field(
         min_length=1,
         max_length=MAX_MESSAGES
@@ -297,7 +304,7 @@ def home():
     return {
         "app": "Razers AI",
         "status": "running",
-        "version": "0.8.0",
+        "version": "0.8.1",
         "mode": "mock" if MOCK_MODE else "production"
     }
 
@@ -328,7 +335,20 @@ def health_check():
 )
 def chat(request: ChatRequest):
 
+    # ======================================
+    # CONVERSATION IDENTIFICATION
+    # ======================================
+
+    conversation_id = request.conversation_id
+
+    print(
+        f"Conversation ID: {conversation_id}",
+        flush=True
+    )
+
+    # ======================================
     # VALIDATE LATEST MESSAGE
+    # ======================================
 
     if request.messages[-1].role != "user":
 
@@ -337,7 +357,9 @@ def chat(request: ChatRequest):
             detail="The last message must come from the user."
         )
 
+    # ======================================
     # BUILD CONVERSATION CONTEXT
+    # ======================================
 
     conversation_history = build_conversation_context(
         request.messages
@@ -354,7 +376,9 @@ def chat(request: ChatRequest):
         flush=True
     )
 
+    # ======================================
     # MOCK MODE
+    # ======================================
 
     if MOCK_MODE:
 
@@ -362,7 +386,9 @@ def chat(request: ChatRequest):
             reply=generate_mock_reply(conversation_history)
         )
 
+    # ======================================
     # CHECK OPENAI CONFIGURATION
+    # ======================================
 
     if not client:
 
@@ -371,7 +397,9 @@ def chat(request: ChatRequest):
             detail="OpenAI API Key belum dikonfigurasi."
         )
 
+    # ======================================
     # OPENAI REQUEST
+    # ======================================
 
     try:
 
@@ -394,7 +422,9 @@ def chat(request: ChatRequest):
             reply=reply.strip()
         )
 
+    # ======================================
     # TIMEOUT ERROR
+    # ======================================
 
     except APITimeoutError as error:
 
@@ -408,7 +438,9 @@ def chat(request: ChatRequest):
             detail="Waktu tunggu AI habis. Silakan coba lagi."
         ) from error
 
+    # ======================================
     # CONNECTION ERROR
+    # ======================================
 
     except APIConnectionError as error:
 
@@ -422,7 +454,9 @@ def chat(request: ChatRequest):
             detail="Gagal terhubung ke OpenAI. Periksa koneksi internet kamu."
         ) from error
 
+    # ======================================
     # OPENAI API STATUS ERRORS
+    # ======================================
 
     except APIStatusError as error:
 
@@ -468,7 +502,9 @@ def chat(request: ChatRequest):
             detail=detail
         ) from error
 
+    # ======================================
     # OTHER OPENAI ERRORS
+    # ======================================
 
     except OpenAIError as error:
 
@@ -482,12 +518,16 @@ def chat(request: ChatRequest):
             detail="Terjadi kesalahan pada layanan AI."
         ) from error
 
+    # ======================================
     # PRESERVE HTTP EXCEPTIONS
+    # ======================================
 
     except HTTPException:
         raise
 
+    # ======================================
     # UNEXPECTED BACKEND ERRORS
+    # ======================================
 
     except Exception as error:
 

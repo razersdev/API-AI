@@ -97,10 +97,8 @@ function buildConversationHistory(messages) {
 // REQUEST AI
 // ==========================================
 
-async function requestAI(messages) {
+async function requestAI(messages, conversationId) {
   let response;
-
-  // NETWORK ERROR
 
   try {
     response = await fetch(`${API_URL}/chat`, {
@@ -108,7 +106,10 @@ async function requestAI(messages) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        messages,
+      }),
     });
   } catch (error) {
     console.error("Network Error:", error);
@@ -118,11 +119,7 @@ async function requestAI(messages) {
     );
   }
 
-  // PARSE RESPONSE
-
   const data = await response.json().catch(() => ({}));
-
-  // HTTP ERROR
 
   if (!response.ok) {
     throw new Error(
@@ -130,8 +127,6 @@ async function requestAI(messages) {
         `Terjadi kesalahan server (${response.status}).`
     );
   }
-
-  // EMPTY RESPONSE
 
   if (!data.reply) {
     throw new Error(
@@ -152,10 +147,9 @@ function App() {
 
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
   const [backendStatus, setBackendStatus] =
     useState("connecting");
-
-  // Custom modal and notification
 
   const [modal, setModal] = useState(null);
   const [modalInput, setModalInput] = useState("");
@@ -286,6 +280,12 @@ function App() {
 
     const newConversation = createConversation();
 
+    // DIAGNOSTIC LOG
+    console.log(
+      "NEW CHAT CREATED:",
+      newConversation.id
+    );
+
     setConversationState((prev) => ({
       conversations: [
         newConversation,
@@ -313,7 +313,7 @@ function App() {
   };
 
   // ==========================================
-  // RENAME CONVERSATION - CUSTOM MODAL
+  // RENAME CONVERSATION
   // ==========================================
 
   const openRenameModal = (id) => {
@@ -357,7 +357,7 @@ function App() {
   };
 
   // ==========================================
-  // DELETE CONVERSATION - CUSTOM MODAL
+  // DELETE CONVERSATION
   // ==========================================
 
   const openDeleteModal = (id) => {
@@ -425,8 +425,16 @@ function App() {
       return;
     }
 
+    // Capture the originating conversation ID.
     const conversationId = activeConversation.id;
 
+    // DIAGNOSTIC LOG
+    console.log(
+      "SENDING CONVERSATION:",
+      conversationId
+    );
+
+    // Build history from this conversation only.
     const conversationHistory = buildConversationHistory(
       activeConversation.messages
     );
@@ -457,8 +465,12 @@ function App() {
     setLoading(true);
 
     try {
-      const reply = await requestAI(conversationHistory);
+      const reply = await requestAI(
+        conversationHistory,
+        conversationId
+      );
 
+      // Save response to the original conversation.
       updateConversation(conversationId, (chat) => ({
         messages: [
           ...chat.messages,
@@ -527,7 +539,10 @@ function App() {
     setLoading(true);
 
     try {
-      const reply = await requestAI(conversationHistory);
+      const reply = await requestAI(
+        conversationHistory,
+        conversationId
+      );
 
       updateConversation(conversationId, (chat) => ({
         messages: chat.messages.map((item) =>
@@ -855,9 +870,7 @@ function App() {
 
       </main>
 
-      {/* ========================================
-          CUSTOM MODAL
-      ======================================== */}
+      {/* CUSTOM MODAL */}
 
       {modal && (
         <div
@@ -910,6 +923,7 @@ function App() {
                 />
 
                 <div className="razers-modal-actions">
+
                   <button
                     className="razers-modal-cancel"
                     onClick={() => setModal(null)}
@@ -923,6 +937,7 @@ function App() {
                   >
                     Save
                   </button>
+
                 </div>
               </>
             ) : (
@@ -943,6 +958,7 @@ function App() {
                 </p>
 
                 <div className="razers-modal-actions">
+
                   <button
                     className="razers-modal-cancel"
                     onClick={() => setModal(null)}
@@ -956,6 +972,7 @@ function App() {
                   >
                     Delete
                   </button>
+
                 </div>
               </>
             )}
@@ -963,9 +980,7 @@ function App() {
         </div>
       )}
 
-      {/* ========================================
-          TOAST NOTIFICATION
-      ======================================== */}
+      {/* TOAST NOTIFICATION */}
 
       {toast && (
         <div
