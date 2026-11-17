@@ -6,12 +6,13 @@ Razers AI is a personal AI assistant project built with React, Vite, and FastAPI
 
 ## Current Version
 
-**Backend:** `0.7.0`  
-**Project Status:** In Development
+- **Backend:** `0.8.1`
+- **Project Status:** In Development
 
 ## Features
 
 ### Implemented
+
 - Interactive AI chat interface.
 - Create new conversations.
 - Conversation history management.
@@ -24,19 +25,27 @@ Razers AI is a personal AI assistant project built with React, Vite, and FastAPI
 - Copy AI responses.
 - Backend request validation and error handling.
 
-### Conversation Context Engine — v0.7.0
+### Conversation Context Engine — v0.8.1
+
 - Send previous messages as conversation context.
 - Separate conversation history for each chat.
+- Conversation identification using unique conversation IDs.
 - System instructions for Razers AI identity and behavior.
 - Dedicated conversation context builder.
-- Configurable OpenAI model through environment variables.
-- Message count and message length validation.
+- Token usage estimation for conversation messages.
+- Conversation turn grouping to preserve complete exchanges.
+- Context truncation based on a configurable token budget.
+- Preserve the newest conversation turns when the context limit is reached.
+- Configurable maximum context tokens through environment variables.
+- Frontend conversation persistence across page refreshes.
+- Conversation isolation between different chats.
 
-**Development status:** Implementation prepared; testing and verification pending.
+**Development status:** Core implementation completed. Frontend persistence and conversation switching verified. Further context testing is the next step.
 
 ## Technology Stack
 
 ### Frontend
+
 - React
 - Vite
 - JavaScript
@@ -44,6 +53,7 @@ Razers AI is a personal AI assistant project built with React, Vite, and FastAPI
 - Browser Local Storage
 
 ### Backend
+
 - Python
 - FastAPI
 - Uvicorn
@@ -52,6 +62,7 @@ Razers AI is a personal AI assistant project built with React, Vite, and FastAPI
 - OpenAI Python SDK
 
 ### AI
+
 - OpenAI Responses API
 - Default model: `gpt-4.1-mini`
 
@@ -90,7 +101,7 @@ Some components, including Electron and Docker configuration, are still under de
 
 ```bash
 git clone https://github.com/razersdev/API-AI.git
-cd API-AI
+cd API-AI/razers-ai
 ```
 
 ### 2. Backend Setup
@@ -127,6 +138,7 @@ Create a `.env` file inside the `backend` directory:
 OPENAI_API_KEY=your_openai_api_key
 OPENAI_MODEL=gpt-4.1-mini
 MOCK_MODE=true
+MAX_CONTEXT_TOKENS=12000
 ```
 
 Configuration:
@@ -136,6 +148,7 @@ Configuration:
 | `OPENAI_API_KEY` | OpenAI API key |
 | `OPENAI_MODEL` | OpenAI model selection |
 | `MOCK_MODE` | Enable or disable mock responses |
+| `MAX_CONTEXT_TOKENS` | Maximum estimated context token budget |
 
 **Important:** Never commit `.env` or expose your API key publicly.
 
@@ -203,6 +216,7 @@ http://localhost:5173
 
 ```json
 {
+  "conversation_id": "unique-conversation-id",
   "messages": [
     {
       "role": "user",
@@ -220,9 +234,36 @@ http://localhost:5173
 }
 ```
 
+The frontend sends the conversation ID and the relevant message history with each request.
+
+The backend processes the supplied messages and applies context management before sending them to the AI model. Conversation history is currently managed by the frontend rather than persisted in a backend database.
+
+## Conversation Context Management
+
+The Conversation Context Engine introduces a context management layer to make conversation processing more efficient.
+
+### Token Estimation
+
+Estimates the token usage of messages before sending the conversation context to the AI model.
+
+### Conversation Turn Grouping
+
+Groups user messages and their corresponding assistant responses into complete conversation turns.
+
+### Context Truncation
+
+When the estimated context exceeds the configured token budget, older complete turns are removed while newer turns are preserved.
+
+### Conversation Isolation
+
+Each conversation has its own unique ID and message history. The frontend sends only the active conversation's history to the backend.
+
+**Note:** Token estimation is approximate and is not an official tokenizer.
+
 ## Development Roadmap
 
 ### CP38 — End-to-End Testing
+
 - CH01 — System Audit & Preparation
 - CH02 — Backend API Testing
 - CH03 — Frontend Interaction Testing
@@ -232,11 +273,14 @@ http://localhost:5173
 - CH07 — Final E2E Validation
 
 ### CP39 — Conversation Context Engine
+
 - CH01 — Conversation Flow Audit
 - CH02 — Context Management
 - CH03 — Backend Integration
 - CH04 — Frontend Integration
 - CH05 — Context Testing
+
+**Current focus:** CH05 — Context Testing.
 
 ## Current Development Status
 
@@ -247,8 +291,13 @@ http://localhost:5173
 | Local conversation storage | Implemented |
 | OpenAI integration | Implemented |
 | Mock Mode | Implemented |
-| Conversation Context v0.7.0 | Testing pending |
-| Electron integration | In development |
+| Conversation Context Engine v0.8.1 | Implemented |
+| Token estimation | Implemented |
+| Conversation turn grouping | Implemented |
+| Context truncation | Implemented |
+| Conversation isolation | Verified |
+| Frontend persistence | Verified |
+| Electron integration | In Development |
 | Docker configuration | Pending |
 
 ## Future Goals
