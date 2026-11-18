@@ -2,7 +2,7 @@
 
 **Personal AI Assistant — Desktop Application**
 
-Razers AI is a personal AI assistant project built with React, Vite, and FastAPI. The application is designed to provide an interactive AI chat experience with conversation history and contextual responses.
+Razers AI is a personal AI assistant project built with React, Vite, and FastAPI. The application is designed to provide an interactive AI chat experience with conversation history, contextual responses, and persistent user memory.
 
 ## Current Version
 
@@ -24,6 +24,10 @@ Razers AI is a personal AI assistant project built with React, Vite, and FastAPI
 - Retry failed messages.
 - Copy AI responses.
 - Backend request validation and error handling.
+- Conversation Context Engine.
+- Persistent Memory foundation using SQLite.
+- Memory retrieval based on keywords and categories.
+- Cross-conversation memory retrieval.
 
 ### Conversation Context Engine — v0.8.1
 
@@ -40,7 +44,26 @@ Razers AI is a personal AI assistant project built with React, Vite, and FastAPI
 - Frontend conversation persistence across page refreshes.
 - Conversation isolation between different chats.
 
-**Development status:** Core implementation completed. Frontend persistence and conversation switching verified. Further context testing is the next step.
+**Development status:** Core implementation completed. Frontend persistence, conversation switching, and context management have been verified.
+
+### Persistent Memory — CP40
+
+- SQLite-based persistent memory storage.
+- SQLAlchemy ORM integration.
+- Alembic database migration support.
+- Dedicated memory data model.
+- Memory repository for database queries.
+- Memory retrieval service.
+- Keyword-based memory search.
+- Category-based memory filtering.
+- Memory prioritization using importance values.
+- Configurable memory retrieval limit.
+- Persistent memory context builder.
+- Integration with the `/chat` endpoint.
+- Memory context integration with Mock Mode.
+- Cross-conversation memory retrieval.
+
+**Development status:** Core memory storage, retrieval, and chat integration have been implemented and tested. Production OpenAI integration testing is still pending.
 
 ## Technology Stack
 
@@ -60,6 +83,14 @@ Razers AI is a personal AI assistant project built with React, Vite, and FastAPI
 - Pydantic
 - Python-dotenv
 - OpenAI Python SDK
+- SQLAlchemy
+- Alembic
+
+### Database
+
+- SQLite
+- SQLAlchemy ORM
+- Alembic Migrations
 
 ### AI
 
@@ -72,9 +103,25 @@ Razers AI is a personal AI assistant project built with React, Vite, and FastAPI
 razers-ai/
 │
 ├── backend/
+│   ├── database/
+│   │   ├── connection.py
+│   │   ├── models.py
+│   │   └── repository.py
+│   │
+│   ├── services/
+│   │   ├── __init__.py
+│   │   └── memory_service.py
+│   │
+│   ├── migrations/
+│   │   ├── versions/
+│   │   ├── env.py
+│   │   └── script.py.mako
+│   │
 │   ├── main.py
 │   ├── requirements.txt
-│   └── .env                  # Local only; never commit
+│   ├── alembic.ini
+│   ├── .env
+│   └── razers_memory.db
 │
 ├── frontend/
 │   ├── electron/
@@ -95,13 +142,15 @@ razers-ai/
 
 Some components, including Electron and Docker configuration, are still under development.
 
+The local SQLite database is generated locally and should not be committed to the repository.
+
 ## Getting Started
 
 ### 1. Clone Repository
 
 ```bash
 git clone https://github.com/razersdev/API-AI.git
-cd API-AI/razers-ai
+cd API-AI
 ```
 
 ### 2. Backend Setup
@@ -152,7 +201,19 @@ Configuration:
 
 **Important:** Never commit `.env` or expose your API key publicly.
 
-### 4. Run Backend
+### 4. Database Migration
+
+Razers AI uses Alembic to manage database schema migrations.
+
+From the backend directory, run:
+
+```bash
+python -m alembic upgrade head
+```
+
+This applies the available migrations and creates the required database tables.
+
+### 5. Run Backend
 
 From the `backend` directory:
 
@@ -178,7 +239,7 @@ Health check:
 http://127.0.0.1:8000/health
 ```
 
-### 5. Frontend Setup
+### 6. Frontend Setup
 
 Open another terminal:
 
@@ -234,9 +295,11 @@ http://localhost:5173
 }
 ```
 
-The frontend sends the conversation ID and the relevant message history with each request.
+The frontend sends the conversation ID and relevant message history with each request.
 
-The backend processes the supplied messages and applies context management before sending them to the AI model. Conversation history is currently managed by the frontend rather than persisted in a backend database.
+The backend processes the supplied messages and applies context management before sending them to the AI model.
+
+Conversation history is currently managed by the frontend rather than persisted in a backend database.
 
 ## Conversation Context Management
 
@@ -260,6 +323,73 @@ Each conversation has its own unique ID and message history. The frontend sends 
 
 **Note:** Token estimation is approximate and is not an official tokenizer.
 
+## Persistent Memory System
+
+The Persistent Memory system introduces long-term memory capabilities to Razers AI.
+
+Unlike conversation context, which only represents the active conversation history, persistent memory is designed to store selected information that can be retrieved across different conversations.
+
+### Memory Architecture
+
+The current memory architecture consists of:
+
+- **SQLite:** Local persistent database.
+- **SQLAlchemy:** Object-relational mapping.
+- **Alembic:** Database schema migration management.
+- **Memory Repository:** Handles database queries.
+- **Memory Service:** Handles memory retrieval logic.
+- **Memory Context Builder:** Formats retrieved memories into AI context.
+- **Chat Integration:** Supplies relevant memory context to the chat pipeline.
+
+### Memory Data Model
+
+The initial memory model includes:
+
+| Field | Description |
+|---|---|
+| `id` | Unique memory identifier |
+| `content` | Stored memory content |
+| `category` | Memory category |
+| `source_conversation_id` | Source conversation identifier |
+| `importance` | Memory importance value |
+| `created_at` | Memory creation timestamp |
+| `updated_at` | Last update timestamp |
+
+### Memory Categories
+
+The initial memory categories are:
+
+- `personal`
+- `preference`
+- `project`
+- `knowledge`
+
+### Memory Retrieval
+
+The retrieval engine currently supports:
+
+- Keyword-based memory search.
+- Category-based filtering.
+- Importance-based prioritization.
+- Updated-time prioritization.
+- Configurable retrieval limits.
+
+### Cross-Conversation Memory
+
+Persistent memory retrieval is independent of the active conversation ID.
+
+This allows relevant stored memory to be retrieved when a user starts a different conversation.
+
+### Memory Integration with Chat
+
+The chat pipeline retrieves relevant memories based on the latest user message.
+
+Retrieved memory is formatted and supplied as additional context to the AI model.
+
+The memory context is treated as reference data, not as system instructions.
+
+**Development status:** SQLite storage, retrieval services, Mock Mode integration, and cross-conversation retrieval have been tested successfully. Production OpenAI integration testing remains pending.
+
 ## Development Roadmap
 
 ### CP38 — End-to-End Testing
@@ -280,7 +410,27 @@ Each conversation has its own unique ID and message history. The frontend sends 
 - CH04 — Frontend Integration
 - CH05 — Context Testing
 
-**Current focus:** CH05 — Context Testing.
+**Status:** Core implementation completed.
+
+### CP40 — Persistent Memory
+
+- CH01 — Memory Architecture
+- CH02 — Memory Data Model
+- CH03 — Memory Storage Backend
+- CH04 — Memory Retrieval Engine
+- CH05 — Memory Integration with Chat
+- CH06 — Memory Testing
+
+**Current focus:** CH05 — Memory Integration with Chat.
+
+**Current progress:**
+
+- CH01 — CLEAR
+- CH02 — CLEAR
+- CH03 — CLEAR
+- CH04 — CLEAR
+- CH05 — IN PROGRESS
+- CH06 — LOCKED
 
 ## Current Development Status
 
@@ -291,19 +441,29 @@ Each conversation has its own unique ID and message history. The frontend sends 
 | Local conversation storage | Implemented |
 | OpenAI integration | Implemented |
 | Mock Mode | Implemented |
-| Conversation Context Engine v0.8.1 | Implemented |
-| Token estimation | Implemented |
-| Conversation turn grouping | Implemented |
-| Context truncation | Implemented |
+| Conversation Context Engine v0.8.1 | Completed |
+| Token estimation | Verified |
+| Conversation turn grouping | Verified |
+| Context truncation | Verified |
 | Conversation isolation | Verified |
 | Frontend persistence | Verified |
+| SQLite memory storage | Implemented |
+| SQLAlchemy ORM | Implemented |
+| Alembic migrations | Verified |
+| Memory repository | Implemented |
+| Memory retrieval service | Verified |
+| Memory context builder | Verified |
+| Chat endpoint memory integration | Verified in Mock Mode |
+| Cross-conversation memory retrieval | Verified |
+| Production memory integration | Pending testing |
 | Electron integration | In Development |
 | Docker configuration | Pending |
 
 ## Future Goals
 
+- Complete Persistent Memory integration testing.
+- Memory management and update capabilities.
 - Streaming AI responses.
-- Long-term AI memory.
 - Edit and regenerate messages.
 - File upload and document analysis.
 - Voice assistant.
