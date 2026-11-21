@@ -1,6 +1,7 @@
 
 import os
 import math
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
@@ -18,7 +19,13 @@ from pydantic import BaseModel, Field
 
 # Persistent Memory Imports
 from database.connection import SessionLocal
-from services.memory_service import retrieve_memories
+from services.memory_service import (
+    retrieve_memories,
+    create_memory,
+    get_memory,
+    update_memory,
+    delete_memory,
+)
 
 
 # ==========================================
@@ -150,6 +157,37 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
+
+
+# ==========================================
+# NEW: MEMORY REQUEST & RESPONSE SCHEMAS
+# ==========================================
+
+class MemoryCreate(BaseModel):
+    content: str
+    category: str
+    importance: int = 1
+    source_conversation_id: str | None = None
+
+
+class MemoryUpdate(BaseModel):
+    content: str | None = None
+    category: str | None = None
+    importance: int | None = None
+
+
+class MemoryResponse(BaseModel):
+    id: int
+    content: str
+    category: str
+    source_conversation_id: str | None
+    importance: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {
+        "from_attributes": True
+    }
 
 
 # ==========================================
@@ -368,7 +406,7 @@ def health_check():
         "mode": "mock" if MOCK_MODE else "production",
         "openai_configured": client is not None,
         "model": OPENAI_MODEL,
-        "max_context_tokens": MAX_CONTEXT_TOKENS
+        "max_context_token": MAX_CONTEXT_TOKENS
     }
 
 
