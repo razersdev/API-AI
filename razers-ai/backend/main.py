@@ -160,7 +160,7 @@ class ChatResponse(BaseModel):
 
 
 # ==========================================
-# NEW: MEMORY REQUEST & RESPONSE SCHEMAS
+# MEMORY REQUEST & RESPONSE SCHEMAS
 # ==========================================
 
 class MemoryCreate(BaseModel):
@@ -411,6 +411,64 @@ def health_check():
 
 
 # ==========================================
+# GET ALL MEMORIES
+# ==========================================
+
+@app.get(
+    "/memories",
+    response_model=list[MemoryResponse]
+)
+def get_all_memories():
+
+    db = SessionLocal()
+
+    try:
+
+        memories = retrieve_memories(
+            db=db,
+            limit=50
+        )
+
+        return memories
+
+    finally:
+
+        db.close()
+
+
+# ==========================================
+# GET MEMORY BY ID
+# ==========================================
+
+@app.get(
+    "/memories/{memory_id}",
+    response_model=MemoryResponse
+)
+def get_memory_by_id(memory_id: int):
+
+    db = SessionLocal()
+
+    try:
+
+        memory = get_memory(
+            db=db,
+            memory_id=memory_id
+        )
+
+        if memory is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Memory not found"
+            )
+
+        return memory
+
+    finally:
+
+        db.close()
+
+
+# ==========================================
 # AI CHAT ENDPOINT
 # ==========================================
 
@@ -598,7 +656,7 @@ def chat(request: ChatRequest):
 
     # ======================================
     # OPENAI API STATUS ERRORS
-    # ======================================
+    # ==========================================
 
     except APIStatusError as error:
 
