@@ -499,6 +499,44 @@ def create_memory_endpoint(request: MemoryCreate):
 
 
 # ==========================================
+# UPDATE MEMORY
+# ==========================================
+
+@app.put(
+    "/memories/{memory_id}",
+    response_model=MemoryResponse
+)
+def update_memory_endpoint(
+    memory_id: int,
+    request: MemoryUpdate
+):
+
+    db = SessionLocal()
+
+    try:
+
+        memory = update_memory(
+            db=db,
+            memory_id=memory_id,
+            content=request.content,
+            category=request.category,
+            importance=request.importance,
+        )
+
+        if memory is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Memory not found"
+            )
+
+        return memory
+
+    finally:
+
+        db.close()
+
+
+# ==========================================
 # AI CHAT ENDPOINT
 # ==========================================
 
@@ -684,7 +722,7 @@ def chat(request: ChatRequest):
             detail="Gagal terhubung ke OpenAI. Periksa koneksi internet kamu."
         ) from error
 
-    # ======================================
+    # ==========================================
     # OPENAI API STATUS ERRORS
     # ==========================================
 
