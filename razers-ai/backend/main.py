@@ -469,6 +469,36 @@ def get_memory_by_id(memory_id: int):
 
 
 # ==========================================
+# CREATE MEMORY
+# ==========================================
+
+@app.post(
+    "/memories",
+    response_model=MemoryResponse,
+    status_code=201
+)
+def create_memory_endpoint(request: MemoryCreate):
+
+    db = SessionLocal()
+
+    try:
+
+        memory = create_memory(
+            db=db,
+            content=request.content,
+            category=request.category,
+            importance=request.importance,
+            source_conversation_id=request.source_conversation_id,
+        )
+
+        return memory
+
+    finally:
+
+        db.close()
+
+
+# ==========================================
 # AI CHAT ENDPOINT
 # ==========================================
 
