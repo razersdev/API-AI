@@ -31,6 +31,12 @@ Razers AI is a personal AI assistant project built with React, Vite, and FastAPI
 - Importance-based memory prioritization.
 - Cross-conversation memory retrieval.
 - Memory retrieval failure handling.
+- Memory CRUD repository and service.
+- Memory Management API:
+  - Retrieve memories.
+  - Retrieve a memory by ID.
+  - Create a memory.
+  - Update an existing memory.
 
 ### Conversation Context Engine — v0.8.1
 
@@ -73,6 +79,26 @@ Razers AI is a personal AI assistant project built with React, Vite, and FastAPI
 **Testing:** 6/6 memory testing scenarios passed.
 
 Live OpenAI production behavior with persistent memory remains pending further validation.
+
+### Memory Management — CP41
+
+The Memory Management module introduces API-level operations for managing stored memories.
+
+**Implemented capabilities:**
+
+- Retrieve all memories.
+- Retrieve a memory by its unique ID.
+- Create new memories.
+- Update existing memories.
+- Memory CRUD repository integration.
+- Memory service integration.
+- Pydantic request and response schemas.
+- Database session handling.
+- HTTP response handling, including `404 Not Found` for missing memory records.
+
+**Development status:** CH01 — Memory Management Audit and CH02 — Memory CRUD Logic completed. CH03 — Memory Management API is currently in progress.
+
+The API currently supports memory retrieval, creation, and updating. Memory deletion and additional validation and security improvements remain part of the development roadmap.
 
 ## Technology Stack
 
@@ -159,6 +185,7 @@ The local SQLite database is generated locally and should not be committed to th
 
 ```bash
 git clone https://github.com/razersdev/API-AI.git
+
 cd API-AI
 ```
 
@@ -196,8 +223,11 @@ Create a `.env` file inside the `backend` directory.
 
 ```env
 OPENAI_API_KEY=your_openai_api_key
+
 OPENAI_MODEL=gpt-4.1-mini
+
 MOCK_MODE=true
+
 MAX_CONTEXT_TOKENS=12000
 ```
 
@@ -278,11 +308,24 @@ http://localhost:5173
 
 ## API Endpoints
 
+### General Endpoints
+
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/` | API information |
 | GET | `/health` | Backend health check |
 | POST | `/chat` | Send chat messages and conversation context |
+
+### Memory Management Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/memories` | Retrieve stored memories |
+| GET | `/memories/{memory_id}` | Retrieve a memory by ID |
+| POST | `/memories` | Create a new memory |
+| PUT | `/memories/{memory_id}` | Update an existing memory |
+
+**Note:** Memory deletion endpoint is not implemented yet.
 
 ### Chat Request Example
 
@@ -348,7 +391,7 @@ The current memory architecture consists of:
 - **SQLAlchemy:** Object-relational mapping.
 - **Alembic:** Database schema migration management.
 - **Memory Repository:** Handles database queries.
-- **Memory Service:** Handles memory retrieval logic.
+- **Memory Service:** Handles memory retrieval and management logic.
 - **Memory Context Builder:** Formats retrieved memories into AI context.
 - **Chat Integration:** Supplies relevant memory context to the chat pipeline.
 
@@ -424,6 +467,75 @@ Storage persistence, retrieval, filtering, prioritization, cross-conversation ac
 
 Live production OpenAI API behavior with persistent memory remains pending validation.
 
+## Memory Management API
+
+The Memory Management API provides backend endpoints to manage persistent memory records.
+
+### Available Operations
+
+**Retrieve Memories**
+
+```http
+GET /memories
+```
+
+Retrieves stored memories.
+
+**Retrieve Memory by ID**
+
+```http
+GET /memories/{memory_id}
+```
+
+Retrieves a specific memory using its unique ID.
+
+**Create Memory**
+
+```http
+POST /memories
+```
+
+Example request:
+
+```json
+{
+  "content": "Learning Memory Management API",
+  "category": "knowledge",
+  "importance": 4,
+  "source_conversation_id": "conversation_001"
+}
+```
+
+**Update Memory**
+
+```http
+PUT /memories/{memory_id}
+```
+
+Example request:
+
+```json
+{
+  "content": "Completed Memory Management API implementation",
+  "category": "project",
+  "importance": 5
+}
+```
+
+### Memory API Schemas
+
+- **MemoryCreate:** Defines the data required to create a memory.
+- **MemoryUpdate:** Defines optional fields for updating an existing memory.
+- **MemoryResponse:** Defines the memory data returned by the API.
+
+### API Development Status
+
+- Memory retrieval endpoints: Tested.
+- Memory creation endpoint: Tested.
+- Memory update endpoint: Tested.
+- Memory deletion endpoint: Pending.
+- Additional validation and security: Pending.
+
 ## Development Roadmap
 
 ### CP38 — End-to-End Testing
@@ -468,6 +580,24 @@ Live production OpenAI API behavior with persistent memory remains pending valid
 
 **Final testing result: 6/6 PASS**
 
+### CP41 — Memory Management
+
+- CH01 — Memory Management Audit
+- CH02 — Memory CRUD Logic
+- CH03 — Memory Management API
+- CH04 — Memory Validation & Security
+- CH05 — Memory Management Testing
+
+**Current progress:**
+
+- CH01 — CLEAR
+- CH02 — CLEAR
+- CH03 — ACTIVE
+- CH04 — LOCKED
+- CH05 — LOCKED
+
+**Current focus:** Completing the Memory Management API before moving to validation, security, and testing.
+
 ## Current Development Status
 
 | Component | Status |
@@ -495,13 +625,21 @@ Live production OpenAI API behavior with persistent memory remains pending valid
 | Cross-conversation retrieval | Verified |
 | Memory failure handling | Verified |
 | Persistent Memory CP40 | Completed — 6/6 tests passed |
+| Memory retrieval API | Verified |
+| Memory creation API | Verified |
+| Memory update API | Verified |
+| Memory deletion API | Pending |
+| Memory validation & security | Pending |
+| Memory Management testing | Pending |
 | Live production OpenAI memory validation | Pending |
 | Electron integration | In Development |
 | Docker configuration | Pending |
 
 ## Future Goals
 
-- Memory management and update capabilities.
+- Complete Memory Management API, including deletion.
+- Memory validation and security improvements.
+- Comprehensive Memory Management testing.
 - Streaming AI responses.
 - Edit and regenerate messages.
 - File upload and document analysis.
@@ -513,8 +651,4 @@ Live production OpenAI API behavior with persistent memory remains pending valid
 
 ## Repository
 
-GitHub: https://github.com/razersdev/API-AI
-
----
-
-**Razers AI — Built to become a personal AI assistant.**
+GitHub: https://github.com/razersdev/API
