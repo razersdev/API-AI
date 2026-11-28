@@ -537,6 +537,38 @@ def update_memory_endpoint(
 
 
 # ==========================================
+# DELETE MEMORY
+# ==========================================
+
+@app.delete("/memories/{memory_id}")
+def delete_memory_endpoint(memory_id: int):
+
+    db = SessionLocal()
+
+    try:
+
+        deleted_memory = delete_memory(
+            db=db,
+            memory_id=memory_id,
+        )
+
+        if not deleted_memory:
+            raise HTTPException(
+                status_code=404,
+                detail="Memory not found"
+            )
+
+        return {
+            "message": "Memory deleted successfully",
+            "memory_id": memory_id,
+        }
+
+    finally:
+
+        db.close()
+
+
+# ==========================================
 # AI CHAT ENDPOINT
 # ==========================================
 
